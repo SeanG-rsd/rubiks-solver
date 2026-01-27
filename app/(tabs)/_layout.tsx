@@ -39,6 +39,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="cube" color={color} />
         }}
       />
+      <Tabs.Screen 
+        name="solve"
+        options={{
+          title: 'Solve',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="cube.circle" color={color} />
+        }}
+      />
     </Tabs>
   );
 }

@@ -1,23 +1,27 @@
-import {
-    CameraCapturedPicture,
-    CameraType,
-    CameraView,
-    FlashMode,
-    useCameraPermissions,
-} from "expo-camera";
+import { CameraCapturedPicture, useCameraPermissions, CameraView, CameraType } from "expo-camera";
+// import {
+//     Camera,
+//     useCameraDevice,
+//     useCameraPermission,
+// } from "react-native-vision-camera";
+import { useAppState } from "@react-native-community/hooks";
 import { Image } from "expo-image";
 import { useRef, useState } from "react";
 import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { useIsFocused } from "@react-navigation/native";
 
 export default function ScanScreen() {
-    const [facing, setFacing] = useState<CameraType>("back");
     const [cameraReady, setCameraReady] = useState(false);
-    const [flash, setFlash] = useState(false);
     const [permission, requestPermission] = useCameraPermissions();
+    //const device = useCameraDevice("back");
+    const [facing, setFacing] = useState<CameraType>('back');
 
     const [imageUri, setImageUri] = useState<CameraCapturedPicture>();
     const cameraRef = useRef<CameraView>(null);
+    const isFocused = useIsFocused();
+    const appState = useAppState();
+    const isActive = isFocused && appState === "active";
 
     if (!permission) {
         // Camera permissions are still loading.
@@ -45,28 +49,34 @@ export default function ScanScreen() {
     }
 
     function toggleFlash() {
-        setFlash((current) => !current);
+        //setFlash((current) => !current);
     }
 
     async function takePhoto() {
-        if (cameraReady && cameraRef.current) {
-            const photo = await cameraRef.current.takePictureAsync({
-                quality: 0.6,
-                base64: false,
-            });
+        // if (cameraReady && cameraRef.current) {
+        //     const photo = await cameraRef.current.takePictureAsync({
+        //         quality: 0.6,
+        //         base64: false,
+        //     });
 
-            setImageUri(photo);
-            console.log("Photo URI:", photo.uri);
-        }
+        //     setImageUri(photo);
+        //     console.log("Photo URI:", photo.uri);
+        // }
     }
+
+    //if (device == null) return <View />;
 
     return (
         <View style={styles.container}>
+            {/* <Camera
+                style={styles.camera}
+                device={device}
+                ref={cameraRef}
+                isActive={true}
+            /> */}
             <CameraView
                 style={styles.camera}
                 facing={facing}
-                enableTorch={flash}
-                onCameraReady={onCameraReady}
                 ref={cameraRef}
             />
             <View style={styles.takePictureContainer}>
@@ -85,32 +95,6 @@ export default function ScanScreen() {
                 </TouchableOpacity>
             </View>
             <View style={styles.box}>
-                <Svg height="100%" width="100%" viewBox="0 0 100 100">
-                    {
-                        /* This path draws a box starting from the top-right gap,
-       goes around the square, and ends at the top-left gap.
-       M = Move to, L = Line to, A = Arc (for rounded corners)
-    */
-                    }
-                    <Path
-                        d="
-        M 65 5 
-        L 90 5 
-        A 5 5 0 0 1 95 10 
-        L 95 90 
-        A 5 5 0 0 1 90 95 
-        L 10 95 
-        A 5 5 0 0 1 5 90 
-        L 5 10 
-        A 5 5 0 0 1 10 5 
-        L 35 5
-      "
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="2" // Relative to viewBox size
-                        strokeLinecap="round"
-                    />
-                </Svg>
             </View>
         </View>
     );
