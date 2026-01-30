@@ -13,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-, "app/(tabs)/solve.jsx"  ]
+, "app/(tabs)/solve.jsx", "app/(tabs)/scan.tsx"  ]
 }
