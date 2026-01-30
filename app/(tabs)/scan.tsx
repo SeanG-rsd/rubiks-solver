@@ -12,7 +12,7 @@ import {
 } from "react-native-vision-camera";
 import type { Frame } from "react-native-vision-camera";
 import { useAppState } from "@react-native-community/hooks";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { useIsFocused } from "@react-navigation/native";
@@ -29,6 +29,9 @@ import {
 } from "react-native-fast-opencv";
 import { PaintStyle, Skia } from "@shopify/react-native-skia";
 import { runOnJS, runOnRuntime, scheduleOnRN } from "react-native-worklets";
+import { Rectangle } from "@/constants/types";
+import { useSharedValue } from "react-native-worklets-core";
+import { useAnimatedReaction, useDerivedValue } from "react-native-reanimated";
 
 const paint = Skia.Paint();
 paint.setStyle(PaintStyle.Fill);
@@ -45,14 +48,23 @@ export default function ScanScreen() {
     const appState = useAppState();
     const isActive = isFocused && appState === "active";
 
-    const [detectedRects, setDetectedRects] = useState<any[]>([]);
+    const rectsShared = useSharedValue<Rectangle[]>([]);
+    const [rects, setRects] = useState<Rectangle[]>([]);
 
-    const updateRects = (rects: any[]) => {
-        setDetectedRects(rects);
-    };
+    // useAnimatedReaction(
+    //     () => rectsShared.value,
+    //     (current) => {
+    //         console.log(`Rects updated: ${current.length}`);
+    //         scheduleOnRN(() => {
+    //             setRects(current);
+    //         });
+    //     },
+    // );
 
     const frameProcessor = useFrameProcessor((frame) => {
-        runAtTargetFps(5, () => {
+        "worklet";
+
+        runAtTargetFps(1, () => {
             "worklet";
 
             const height = frame.height / 4;
@@ -84,7 +96,7 @@ export default function ScanScreen() {
             );
             const upperBound = OpenCV.createObject(
                 ObjectType.Scalar,
-                50,
+                255,
                 255,
                 255,
             );
@@ -120,13 +132,13 @@ export default function ScanScreen() {
                     false,
                 );
 
-                if (area > 3000) {
+                if (area > 250) {
                     const rect = OpenCV.invoke("boundingRect", contour);
                     rectangles.push(rect);
                 }
             }
 
-            const jsRects = [];
+            const jsRects: Rectangle[] = [];
             for (const rect of rectangles) {
                 const data = OpenCV.toJSValue(rect);
 
@@ -136,9 +148,12 @@ export default function ScanScreen() {
                     width: data.width * 4,
                     height: data.height * 4,
                 });
+
+                console.log(jsRects[0].height);
+                console.log(jsRects[0].width);
             }
 
-            runOnJS(updateRects)(jsRects);
+            rectsShared.value = jsRects;
 
             OpenCV.clearBuffers(); // IMPORTANT! At the end.
         });
@@ -162,6 +177,8 @@ export default function ScanScreen() {
     }
 
     if (device == null) return <View />;
+
+    console.log(rects.length);
 
     return (
         <View style={styles.container}>
@@ -188,11 +205,13 @@ export default function ScanScreen() {
                     <Text style={styles.text}>Flip Camera</Text>
                 </TouchableOpacity>
             </View>
-            <View style={styles.box}>
-            </View>
+            {
+                /* <View style={styles.box}>
+            </View> */
+            }
 
             <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
-                {detectedRects.map((r, index) => (
+                {rects.map((r, index) => (
                     <View
                         key={index}
                         style={{
