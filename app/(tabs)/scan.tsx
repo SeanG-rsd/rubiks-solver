@@ -1,9 +1,4 @@
-import {
-    CameraCapturedPicture,
-    CameraType,
-    CameraView,
-    useCameraPermissions,
-} from "expo-camera";
+import { useCameraPermissions } from "expo-camera";
 import {
     Camera,
     runAtTargetFps,
@@ -13,7 +8,14 @@ import {
 import type { Frame } from "react-native-vision-camera";
 import { useAppState } from "@react-native-community/hooks";
 import { useCallback, useRef, useState } from "react";
-import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+    Button,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native";
 
 import { useIsFocused } from "@react-navigation/native";
 
@@ -27,15 +29,24 @@ import {
     Rect,
     RetrievalModes,
 } from "react-native-fast-opencv";
-import { PaintStyle, Skia } from "@shopify/react-native-skia";
+import {
+    Canvas,
+    PaintStyle,
+    Path,
+    rect,
+    Skia,
+} from "@shopify/react-native-skia";
 import { runOnJS, runOnRuntime, scheduleOnRN } from "react-native-worklets";
 import { Rectangle } from "@/constants/types";
 import { useSharedValue } from "react-native-worklets-core";
 import { useAnimatedReaction, useDerivedValue } from "react-native-reanimated";
+import { cubeRanges } from "@/constants/variables";
+import { Range } from "@/constants/types";
 
 const paint = Skia.Paint();
 paint.setStyle(PaintStyle.Fill);
 paint.setColor(Skia.Color("lime"));
+paint.setStrokeWidth(2);
 
 export default function ScanScreen() {
     const [permission, requestPermission] = useCameraPermissions();
@@ -48,21 +59,23 @@ export default function ScanScreen() {
     const appState = useAppState();
     const isActive = isFocused && appState === "active";
 
-    const rectsShared = useSharedValue<Rectangle[]>([]);
-    const [rects, setRects] = useState<Rectangle[]>([]);
+    const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+    const frameDimensions = useSharedValue({ width: 0, height: 0 });
 
-    // useAnimatedReaction(
-    //     () => rectsShared.value,
-    //     (current) => {
-    //         console.log(`Rects updated: ${current.length}`);
-    //         scheduleOnRN(() => {
-    //             setRects(current);
-    //         });
-    //     },
-    // );
+    const rects = useSharedValue<Rectangle[]>([]);
 
     const frameProcessor = useFrameProcessor((frame) => {
         "worklet";
+
+        if (
+            frameDimensions.value.width !== frame.width ||
+            frameDimensions.value.height !== frame.height
+        ) {
+            frameDimensions.value = {
+                width: frame.width,
+                height: frame.height,
+            };
+        }
 
         runAtTargetFps(1, () => {
             "worklet";
@@ -75,89 +88,59 @@ export default function ScanScreen() {
                     width: width,
                     height: height,
                 },
-                pixelFormat: "bgr",
+                pixelFormat: "rgba",
                 dataType: "uint8",
             });
 
-            const src = OpenCV.frameBufferToMat(height, width, 3, resized);
+            const channels = 4;
 
-            const dst = OpenCV.createObject(
-                ObjectType.Mat,
-                0,
-                0,
-                DataTypes.CV_8U,
-            );
+            const x = width / 2;
+            const y = height / 2;
 
-            const lowerBound = OpenCV.createObject(
-                ObjectType.Scalar,
-                30,
-                60,
-                60,
-            );
-            const upperBound = OpenCV.createObject(
-                ObjectType.Scalar,
-                255,
-                255,
-                255,
-            );
-            OpenCV.invoke(
-                "cvtColor",
-                src,
-                dst,
-                ColorConversionCodes.COLOR_BGR2HSV,
-            );
-            OpenCV.invoke("inRange", dst, lowerBound, upperBound, dst);
+            const index = (y * width + x) * channels;
 
-            const channels = OpenCV.createObject(ObjectType.MatVector);
-            OpenCV.invoke("split", dst, channels);
-            const grayChannel = OpenCV.copyObjectFromVector(channels, 0);
+            const red = resized[index];
+            const green = resized[index + 1];
+            const blue = resized[index + 2];
+            const alpha = resized[index + 3];
+            
+            // for (const range of Object.values(cubeRanges)) {
+            //     console.log(range.max.name)
+            // }
 
-            const contours = OpenCV.createObject(ObjectType.MatVector);
-            OpenCV.invoke(
-                "findContours",
-                grayChannel,
-                contours,
-                RetrievalModes.RETR_TREE,
-                ContourApproximationModes.CHAIN_APPROX_SIMPLE,
-            );
-
-            const contoursMats = OpenCV.toJSValue(contours);
-            const rectangles: Rect[] = [];
-
-            for (let i = 0; i < contoursMats.array.length; i++) {
-                const contour = OpenCV.copyObjectFromVector(contours, i);
-                const { value: area } = OpenCV.invoke(
-                    "contourArea",
-                    contour,
-                    false,
-                );
-
-                if (area > 250) {
-                    const rect = OpenCV.invoke("boundingRect", contour);
-                    rectangles.push(rect);
-                }
-            }
-
-            const jsRects: Rectangle[] = [];
-            for (const rect of rectangles) {
-                const data = OpenCV.toJSValue(rect);
-
-                jsRects.push({
-                    x: data.x * 4,
-                    y: data.y * 4,
-                    width: data.width * 4,
-                    height: data.height * 4,
-                });
-
-                console.log(jsRects[0].height);
-                console.log(jsRects[0].width);
-            }
-
-            rectsShared.value = jsRects;
-
-            OpenCV.clearBuffers(); // IMPORTANT! At the end.
+            console.log(`RBG: ${red}, ${green}, ${blue}, ${alpha}`);
         });
-    }, [resize]);
+    }, [rects]);
+
+    const skiaPath = useDerivedValue(() => {
+        const path = Skia.Path.Make();
+
+        const frameW = frameDimensions.value.width;
+        const frameH = frameDimensions.value.height;
+
+        if (frameW === 0 || frameH === 0) return path;
+
+        const originalPixelX = frameW / 2;
+        const originalPixelY = frameH / 2;
+
+        const scaleX = screenWidth / frameW;
+        const scaleY = screenHeight / frameH;
+
+        const screenX = originalPixelX * scaleX;
+        const screenY = originalPixelY * scaleY;
+
+        const lineLength = 20;
+
+        console.log("here!")
+
+        path.moveTo(screenX - lineLength, screenY);
+        path.lineTo(screenX + lineLength, screenY);
+
+        path.moveTo(screenX, screenY - lineLength);
+        path.lineTo(screenX, screenY + lineLength);
+
+        return path;
+    }, [screenWidth, screenHeight, frameDimensions]);
 
     if (!permission) {
         // Camera permissions are still loading.
@@ -178,8 +161,6 @@ export default function ScanScreen() {
 
     if (device == null) return <View />;
 
-    console.log(rects.length);
-
     return (
         <View style={styles.container}>
             <Camera
@@ -188,8 +169,18 @@ export default function ScanScreen() {
                 ref={cameraRef}
                 isActive={isActive}
                 frameProcessor={frameProcessor}
-                pixelFormat="yuv"
+                pixelFormat="rgb"
             />
+
+            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+                <Path
+                    path={skiaPath}
+                    color="red"
+                    style="stroke"
+                    strokeWidth={2}
+                />
+            </Canvas>
+
             <View style={styles.takePictureContainer}>
                 <TouchableOpacity
                     style={styles.takePictureButton}
@@ -209,24 +200,6 @@ export default function ScanScreen() {
                 /* <View style={styles.box}>
             </View> */
             }
-
-            <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
-                {rects.map((r, index) => (
-                    <View
-                        key={index}
-                        style={{
-                            position: "absolute",
-                            left: r.x,
-                            top: r.y,
-                            width: r.width,
-                            height: r.height,
-                            borderWidth: 2,
-                            borderColor: "lime", // Bright green box
-                            backgroundColor: "rgba(0, 255, 0, 0.1)", // Semi-transparent fill
-                        }}
-                    />
-                ))}
-            </View>
         </View>
     );
 }
