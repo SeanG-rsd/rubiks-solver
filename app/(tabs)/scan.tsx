@@ -21,27 +21,16 @@ import { useIsFocused } from "@react-navigation/native";
 
 import { useResizePlugin } from "vision-camera-resize-plugin";
 import {
-    ColorConversionCodes,
-    ContourApproximationModes,
-    DataTypes,
-    ObjectType,
-    OpenCV,
-    Rect,
-    RetrievalModes,
-} from "react-native-fast-opencv";
-import {
     Canvas,
     PaintStyle,
     Path,
     rect,
     Skia,
 } from "@shopify/react-native-skia";
-import { runOnJS, runOnRuntime, scheduleOnRN } from "react-native-worklets";
-import { Rectangle } from "@/constants/types";
 import { useSharedValue } from "react-native-worklets-core";
-import { useAnimatedReaction, useDerivedValue } from "react-native-reanimated";
+import { useDerivedValue } from "react-native-reanimated";
 import { cubeRanges } from "@/constants/variables";
-import { Range } from "@/constants/types";
+import { Color, Range } from "@/constants/types";
 
 const paint = Skia.Paint();
 paint.setStyle(PaintStyle.Fill);
@@ -62,7 +51,8 @@ export default function ScanScreen() {
     const { width: screenWidth, height: screenHeight } = useWindowDimensions();
     const frameDimensions = useSharedValue({ width: 0, height: 0 });
 
-    const rects = useSharedValue<Rectangle[]>([]);
+    const sides = useSharedValue<string[][]>([]);
+    const validCube = useSharedValue(false);
 
     const frameProcessor = useFrameProcessor((frame) => {
         "worklet";
@@ -96,21 +86,89 @@ export default function ScanScreen() {
 
             const x = width / 2;
             const y = height / 2;
+            const d = 20;
 
-            const index = (y * width + x) * channels;
+            let colors: string[] = [];
 
-            const red = resized[index];
-            const green = resized[index + 1];
-            const blue = resized[index + 2];
-            const alpha = resized[index + 3];
-            
-            // for (const range of Object.values(cubeRanges)) {
-            //     console.log(range.max.name)
-            // }
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    const newX = x + (j * d);
+                    const newY = y + (i * d);
 
-            console.log(`RBG: ${red}, ${green}, ${blue}, ${alpha}`);
+                    const index = (newY * width + newX) * channels;
+
+                    const red = resized[index];
+                    const green = resized[index + 1];
+                    const blue = resized[index + 2];
+                    const alpha = resized[index + 3];
+
+                    for (const range of Object.values(cubeRanges)) {
+                        const min = range.min;
+                        const max = range.max;
+
+                        if (
+                            red >= min.red && red <= max.red &&
+                            green >= min.green &&
+                            green <= max.green && blue >= min.blue &&
+                            blue <= max.blue
+                        ) {
+                            // console.log(
+                            //     `The pixel at ${j},${i} is ${range.color}!`,
+                            // );
+                            colors.push(range.color);
+                        }
+                    }
+                }
+            }
+
+            if (colors.length === 9 && sides.value.length < 6) {
+                let valid = true;
+                //console.log(sides.value.length)
+                for (const side of Object.values(sides.value)) {
+                    //console.log(`${side[4] == colors[4]}: ${side[4]} === ${colors[4]}`)
+                    if (side[4] === colors[4]) valid = false;
+                }
+
+                if (valid) {
+                    sides.value.push(colors);
+                    console.log(colors);
+                    console.log("Found Valid!");
+                }
+            }
+
+            if (sides.value.length === 6 && !validCube.value) {
+                let vals = [0, 0, 0, 0, 0, 0];
+                console.log("------CHECKING------");
+                for (const side of Object.values(sides.value)) {
+                    console.log(side);
+                    for (const color of Object.values(side)) {
+                        if (color === "orange") vals[0]++;
+                        else if (color === "red") vals[1]++;
+                        else if (color === "yellow") vals[2]++;
+                        else if (color === "blue") vals[3]++;
+                        else if (color === "green") vals[4]++;
+                        else if (color === "white") vals[5]++;
+                    }
+                }
+
+                let valid = true;
+                for (const val of Object.values(vals)) {
+                    if (val !== 9) {
+                        console.log("INVALID CUBE: Resetting");
+                        valid = false;
+                    }
+                }
+
+                if (!valid) {
+                    sides.value = [];
+                } else {
+                    validCube.value = true;
+                }
+
+                console.log("------FINISH CHECK------");
+            }
         });
-    }, [rects]);
+    }, [resize]);
 
     const skiaPath = useDerivedValue(() => {
         const path = Skia.Path.Make();
@@ -120,8 +178,8 @@ export default function ScanScreen() {
 
         if (frameW === 0 || frameH === 0) return path;
 
-        const originalPixelX = frameW / 2;
-        const originalPixelY = frameH / 2;
+        const originalPixelX = ((frameW / 4) / 2) * 4;
+        const originalPixelY = (frameH / 4) / 2 * 4;
 
         const scaleX = screenWidth / frameW;
         const scaleY = screenHeight / frameH;
@@ -140,7 +198,12 @@ export default function ScanScreen() {
         path.lineTo(screenX, screenY + lineLength);
 
         return path;
-    }, [screenWidth, screenHeight, frameDimensions]);
+    }, [screenWidth, screenHeight, frameDimensions, sides]);
+
+    const resetSides = () => {
+        sides.value = [];
+        console.log(sides.value.length);
+    };
 
     if (!permission) {
         // Camera permissions are still loading.
@@ -181,19 +244,21 @@ export default function ScanScreen() {
                 />
             </Canvas>
 
-            <View style={styles.takePictureContainer}>
+            {
+                /* <View style={styles.takePictureContainer}>
                 <TouchableOpacity
                     style={styles.takePictureButton}
                     onPress={() => {}}
                 >
                 </TouchableOpacity>
-            </View>
+            </View> */
+            }
             <View style={styles.buttonContainer}>
                 <TouchableOpacity
                     style={styles.button}
-                    onPress={() => {}}
+                    onPress={resetSides}
                 >
-                    <Text style={styles.text}>Flip Camera</Text>
+                    <Text style={styles.text}>Reset Scan</Text>
                 </TouchableOpacity>
             </View>
             {

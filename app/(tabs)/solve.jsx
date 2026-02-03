@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber/native";
-import { OrbitControls, useGLTF } from "@react-three/drei/native";
+import { OrbitControls, useGLTF, Environment } from "@react-three/drei/native";
 import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Suspense, useEffect, useRef } from "react";
 import { useIsFocused, useTheme } from "@react-navigation/native";
@@ -34,6 +34,7 @@ export default function Solve() {
     return (
         <View style={styles.container} key={isFocused}>
             <Canvas style={styles.canvas} frameloop={isFocused ? 'always' : 'never'}>
+                <ambientLight intensity={2.0} />
                 <directionalLight color="white" position={[1, 1, 2]} />
                 <Suspense fallback={<Text>Loading...</Text>}>
                     <Model modelRef={modelRef} />

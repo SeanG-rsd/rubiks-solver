@@ -17,3 +17,7 @@ export type Range = {
     min: Color;
     max: Color;
 }
+
+export type Cube = {
+    
+}
