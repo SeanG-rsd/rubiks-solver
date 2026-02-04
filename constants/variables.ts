@@ -43,3 +43,12 @@ export const cubeRanges = [
         max: { red: 255, green: 255, blue: 255, alpha: 255} as Color
     } as Range
 ]
+
+export const SortedCubeLookup = {
+    "white": 0,
+    "yellow": 1,
+    "blue": 2,
+    "green": 3,
+    "orange": 4,
+    "red": 5,
+}

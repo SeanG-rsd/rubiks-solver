@@ -1,13 +1,6 @@
-import { useCameraPermissions } from "expo-camera";
-import {
-    Camera,
-    runAtTargetFps,
-    useCameraDevice,
-    useFrameProcessor,
-} from "react-native-vision-camera";
-import type { Frame } from "react-native-vision-camera";
 import { useAppState } from "@react-native-community/hooks";
-import { useCallback, useRef, useState } from "react";
+import { useCameraPermissions } from "expo-camera";
+import { useRef } from "react";
 import {
     Button,
     StyleSheet,
@@ -16,22 +9,26 @@ import {
     useWindowDimensions,
     View,
 } from "react-native";
+import {
+    Camera,
+    runAtTargetFps,
+    useCameraDevice,
+    useFrameProcessor,
+} from "react-native-vision-camera";
 
 import { useIsFocused } from "@react-navigation/native";
 
-import { useResizePlugin } from "vision-camera-resize-plugin";
+import { cubeRanges, SortedCubeLookup } from "@/constants/variables";
+import { useCubeStore } from "@/context/CubeContext";
 import {
     Canvas,
     PaintStyle,
     Path,
-    rect,
-    Skia,
+    Skia
 } from "@shopify/react-native-skia";
-import { useSharedValue } from "react-native-worklets-core";
 import { useDerivedValue } from "react-native-reanimated";
-import { cubeRanges } from "@/constants/variables";
-import { Color, Range } from "@/constants/types";
-import { useCubeStore } from "@/context/CubeContext";
+import { useSharedValue } from "react-native-worklets-core";
+import { useResizePlugin } from "vision-camera-resize-plugin";
 
 const paint = Skia.Paint();
 paint.setStyle(PaintStyle.Fill);
@@ -163,6 +160,16 @@ export default function ScanScreen() {
                 if (!valid) {
                     detectedSides.value = [];
                 } else {
+                    
+                    let sortedCube: string[][] = [[],[],[],[],[],[]]
+
+                    for (let i = 0; i < 6; i++) {
+                        const index = SortedCubeLookup[detectedSides.value[i][4] as keyof typeof SortedCubeLookup];
+                        sortedCube[index] = detectedSides.value[i];
+                    }
+
+                    detectedSides.value = sortedCube;
+
                     validCube.value = true;
                     console.log("VALID CUBE!!!")
                 }
@@ -204,6 +211,7 @@ export default function ScanScreen() {
 
     const resetSides = () => {
         detectedSides.value = [];
+        validCube.value = false;
         console.log(detectedSides.value.length);
     };
 

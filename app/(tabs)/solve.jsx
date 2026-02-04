@@ -36,27 +36,27 @@ const RubiksCube = ({ modelRef, sides }) => {
                 ];
 
                 if (y == -1) { // side 0
-                    sideColors[3] = sides[4][(x + 1) * 3 + z + 1];
+                    sideColors[3] = sides[3][(1 - z) * 3 + x + 1];
                 }
 
                 if (y == 1) {
-                    sideColors[2] = sides[1][(x + 1) * 3 + z + 1];
+                    sideColors[2] = sides[2][(z + 1) * 3 + x + 1];
                 }
 
                 if (z == 1) { // side 1
-                    sideColors[4] = sides[0][(x + 1) * 3 + y + 1];
+                    sideColors[4] = sides[4][(1 - y) * 3 + x + 1];
                 }
 
                 if (z == -1) { // side 1
-                    sideColors[5] = sides[2][(x + 1) * 3 + y + 1];
+                    sideColors[5] = sides[5][(y + 1) * 3 + x + 1];
                 }
 
-                if (x == -1) { // side 2
-                    sideColors[1] = sides[3][(z + 1) * 3 + y + 1];
+                if (x == -1) { // yellow
+                    sideColors[1] = sides[1][(z + 1) * 3 + y + 1];
                 }
 
-                if (x == 1) {
-                    sideColors[0] = sides[5][(z + 1) * 3 + y + 1];
+                if (x == 1) { // white
+                    sideColors[0] = sides[0][(1 - z) * 3 + y + 1];
                 }
 
                 cubes.push(
