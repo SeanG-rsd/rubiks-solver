@@ -31,6 +31,7 @@ import { useSharedValue } from "react-native-worklets-core";
 import { useDerivedValue } from "react-native-reanimated";
 import { cubeRanges } from "@/constants/variables";
 import { Color, Range } from "@/constants/types";
+import { useCubeStore } from "@/context/CubeContext";
 
 const paint = Skia.Paint();
 paint.setStyle(PaintStyle.Fill);
@@ -51,8 +52,7 @@ export default function ScanScreen() {
     const { width: screenWidth, height: screenHeight } = useWindowDimensions();
     const frameDimensions = useSharedValue({ width: 0, height: 0 });
 
-    const sides = useSharedValue<string[][]>([]);
-    const validCube = useSharedValue(false);
+    const { detectedSides, validCube } = useCubeStore();
 
     const frameProcessor = useFrameProcessor((frame) => {
         "worklet";
@@ -121,25 +121,26 @@ export default function ScanScreen() {
                 }
             }
 
-            if (colors.length === 9 && sides.value.length < 6) {
+            if (colors.length === 9 && detectedSides.value.length < 6) {
                 let valid = true;
                 //console.log(sides.value.length)
-                for (const side of Object.values(sides.value)) {
+                for (const side of Object.values(detectedSides.value)) {
                     //console.log(`${side[4] == colors[4]}: ${side[4]} === ${colors[4]}`)
                     if (side[4] === colors[4]) valid = false;
                 }
 
                 if (valid) {
-                    sides.value.push(colors);
+                    detectedSides.value = [...detectedSides.value, colors];
                     console.log(colors);
-                    console.log("Found Valid!");
+                    console.log(detectedSides.value.length)
+                    console.log(`Found Valid!: ${detectedSides.value.length}`);
                 }
             }
 
-            if (sides.value.length === 6 && !validCube.value) {
+            if (detectedSides.value.length === 6 && !validCube.value) {
                 let vals = [0, 0, 0, 0, 0, 0];
                 console.log("------CHECKING------");
-                for (const side of Object.values(sides.value)) {
+                for (const side of Object.values(detectedSides.value)) {
                     console.log(side);
                     for (const color of Object.values(side)) {
                         if (color === "orange") vals[0]++;
@@ -160,9 +161,10 @@ export default function ScanScreen() {
                 }
 
                 if (!valid) {
-                    sides.value = [];
+                    detectedSides.value = [];
                 } else {
                     validCube.value = true;
+                    console.log("VALID CUBE!!!")
                 }
 
                 console.log("------FINISH CHECK------");
@@ -198,11 +200,11 @@ export default function ScanScreen() {
         path.lineTo(screenX, screenY + lineLength);
 
         return path;
-    }, [screenWidth, screenHeight, frameDimensions, sides]);
+    }, [screenWidth, screenHeight, frameDimensions]);
 
     const resetSides = () => {
-        sides.value = [];
-        console.log(sides.value.length);
+        detectedSides.value = [];
+        console.log(detectedSides.value.length);
     };
 
     if (!permission) {

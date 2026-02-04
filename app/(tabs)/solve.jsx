@@ -1,20 +1,87 @@
 import { Canvas, useFrame } from "@react-three/fiber/native";
-import { OrbitControls, useGLTF, Environment } from "@react-three/drei/native";
+import { Environment, OrbitControls, useGLTF } from "@react-three/drei/native";
 import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useIsFocused, useTheme } from "@react-navigation/native";
+import { useCubeStore } from "@/context/CubeContext";
+import { useAnimatedReaction } from "react-native-reanimated";
+import { runOnJS } from "react-native-worklets";
+import { useFocusEffect } from "expo-router";
 
-const Model = ({ modelRef }) => {
+const RubiksCube = ({ modelRef, sides }) => {
+    if (sides.length !== 6) {
+        return (
+            <mesh position={[0, 0, 0]}>
+                <boxGeometry args={[2, 2, 2]}></boxGeometry>
+                <meshStandardMaterial color={"red"}></meshStandardMaterial>
+            </mesh>
+        );
+    }
     // Replace with the path to your actual 3D model file
     // const gltf = useGLTF(require("./path/to/your/model.glb")) as GLTF;
     // return <primitive object={gltf.scene} scale={1} />
+
+    let cubes = [];
+
+    for (let x = -1; x <= 1; x++) {
+        for (let y = -1; y <= 1; y++) {
+            for (let z = -1; z <= 1; z++) {
+                let sideColors = [
+                    "black",
+                    "black",
+                    "black",
+                    "black",
+                    "black",
+                    "black",
+                ];
+
+                if (y == -1) { // side 0
+                    sideColors[3] = sides[4][(x + 1) * 3 + z + 1];
+                }
+
+                if (y == 1) {
+                    sideColors[2] = sides[1][(x + 1) * 3 + z + 1];
+                }
+
+                if (z == 1) { // side 1
+                    sideColors[4] = sides[0][(x + 1) * 3 + y + 1];
+                }
+
+                if (z == -1) { // side 1
+                    sideColors[5] = sides[2][(x + 1) * 3 + y + 1];
+                }
+
+                if (x == -1) { // side 2
+                    sideColors[1] = sides[3][(z + 1) * 3 + y + 1];
+                }
+
+                if (x == 1) {
+                    sideColors[0] = sides[5][(z + 1) * 3 + y + 1];
+                }
+
+                cubes.push(
+                    <mesh
+                        position={[x * 0.52, y * 0.52, z * 0.52]}
+                        key={`${x}-${y}-${z}`}
+                    >
+                        <boxGeometry args={[0.5, 0.5, 0.5]} />
+                        {sideColors.map((c, i) => (
+                            <meshStandardMaterial
+                                key={i}
+                                attach={`material-${i}`}
+                                color={c}
+                            />
+                        ))}
+                    </mesh>,
+                );
+            }
+        }
+    }
+
     return (
-        <mesh ref={modelRef} rotation={[Math.PI / 4, Math.PI / 4, 0]}>
-            <boxGeometry
-                args={[2, 2, 2]}
-            />
-            <meshStandardMaterial color="red" />
-        </mesh>
+        <group ref={modelRef}>
+            {cubes}
+        </group>
     );
 };
 
@@ -24,6 +91,10 @@ export default function Solve() {
 
     const isFocused = useIsFocused();
 
+    const { detectedSides, validCube } = useCubeStore();
+
+    const [currentSides, setCurrentSides] = useState([]);
+
     const test = () => {
         if (cameraRef.current && modelRef.current) {
             modelRef.current.rotation.set(Math.PI / 4, Math.PI / 4, 0);
@@ -31,16 +102,32 @@ export default function Solve() {
         }
     };
 
+    useFocusEffect(
+        useCallback(() => {
+            if (validCube.value) {
+                console.log("VALID")
+                setCurrentSides(detectedSides.value);
+            } else {
+                setCurrentSides([])
+            }
+        }, []),
+    );
+
     return (
         <View style={styles.container} key={isFocused}>
-            <Canvas style={styles.canvas} frameloop={isFocused ? 'always' : 'never'}>
+            <Canvas
+                style={styles.canvas}
+                frameloop={isFocused ? "always" : "never"}
+            >
                 <ambientLight intensity={2.0} />
                 <directionalLight color="white" position={[1, 1, 2]} />
                 <Suspense fallback={<Text>Loading...</Text>}>
-                    <Model modelRef={modelRef} />
+                    <RubiksCube modelRef={modelRef} sides={currentSides} />
                     <OrbitControls
                         enableRotate={true}
                         rotateSpeed={2.5}
+                        enableZoom={false}
+                        enablePan={false}
                         ref={cameraRef}
                     />
                 </Suspense>
