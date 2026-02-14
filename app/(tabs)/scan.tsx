@@ -21,14 +21,13 @@ import { useIsFocused } from "@react-navigation/native";
 import { cubeRanges, SortedCubeLookup } from "@/constants/variables";
 import { useCubeStore } from "@/context/CubeContext";
 import {
-    Canvas,
     PaintStyle,
-    Path,
     Skia
 } from "@shopify/react-native-skia";
 import { useDerivedValue } from "react-native-reanimated";
 import { useSharedValue } from "react-native-worklets-core";
 import { useResizePlugin } from "vision-camera-resize-plugin";
+import { organizeCube, printCube, validCubeColors } from "@/scripts/organize-cube";
 
 const paint = Skia.Paint();
 paint.setStyle(PaintStyle.Fill);
@@ -135,81 +134,25 @@ export default function ScanScreen() {
             }
 
             if (detectedSides.value.length === 6 && !validCube.value) {
-                let vals = [0, 0, 0, 0, 0, 0];
-                console.log("------CHECKING------");
-                for (const side of Object.values(detectedSides.value)) {
-                    console.log(side);
-                    for (const color of Object.values(side)) {
-                        if (color === "orange") vals[0]++;
-                        else if (color === "red") vals[1]++;
-                        else if (color === "yellow") vals[2]++;
-                        else if (color === "blue") vals[3]++;
-                        else if (color === "green") vals[4]++;
-                        else if (color === "white") vals[5]++;
-                    }
-                }
-
-                let valid = true;
-                for (const val of Object.values(vals)) {
-                    if (val !== 9) {
-                        console.log("INVALID CUBE: Resetting");
-                        valid = false;
-                    }
-                }
+                let valid = validCubeColors(detectedSides.value)
 
                 if (!valid) {
                     detectedSides.value = [];
                 } else {
-                    
-                    let sortedCube: string[][] = [[],[],[],[],[],[]]
+                    detectedSides.value = organizeCube(detectedSides.value);
 
-                    for (let i = 0; i < 6; i++) {
-                        const index = SortedCubeLookup[detectedSides.value[i][4] as keyof typeof SortedCubeLookup];
-                        sortedCube[index] = detectedSides.value[i];
-                    }
-
-                    detectedSides.value = sortedCube;
+                    console.log(detectedSides.value)
 
                     validCube.value = true;
-                    console.log("VALID CUBE!!!")
                 }
 
-                console.log("------FINISH CHECK------");
+                console.log("------FINISH CHECK------")
             }
         });
     }, [resize]);
 
-    const skiaPath = useDerivedValue(() => {
-        const path = Skia.Path.Make();
-
-        const frameW = frameDimensions.value.width;
-        const frameH = frameDimensions.value.height;
-
-        if (frameW === 0 || frameH === 0) return path;
-
-        const originalPixelX = ((frameW / 4) / 2) * 4;
-        const originalPixelY = (frameH / 4) / 2 * 4;
-
-        const scaleX = screenWidth / frameW;
-        const scaleY = screenHeight / frameH;
-
-        const screenX = originalPixelX * scaleX;
-        const screenY = originalPixelY * scaleY;
-
-        const lineLength = 20;
-
-        console.log("here!")
-
-        path.moveTo(screenX - lineLength, screenY);
-        path.lineTo(screenX + lineLength, screenY);
-
-        path.moveTo(screenX, screenY - lineLength);
-        path.lineTo(screenX, screenY + lineLength);
-
-        return path;
-    }, [screenWidth, screenHeight, frameDimensions]);
-
     const resetSides = () => {
+        printCube(detectedSides.value)
         detectedSides.value = [];
         validCube.value = false;
         console.log(detectedSides.value.length);
@@ -245,24 +188,14 @@ export default function ScanScreen() {
                 pixelFormat="rgb"
             />
 
-            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-                <Path
-                    path={skiaPath}
+            {/* <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+                <Line
+                    
                     color="red"
                     style="stroke"
-                    strokeWidth={2}
-                />
-            </Canvas>
+                    strokeWidth={2} p1={[0,0]} p2={undefined}                />
+            </Canvas> */}
 
-            {
-                /* <View style={styles.takePictureContainer}>
-                <TouchableOpacity
-                    style={styles.takePictureButton}
-                    onPress={() => {}}
-                >
-                </TouchableOpacity>
-            </View> */
-            }
             <View style={styles.buttonContainer}>
                 <TouchableOpacity
                     style={styles.button}
@@ -271,10 +204,13 @@ export default function ScanScreen() {
                     <Text style={styles.text}>Reset Scan</Text>
                 </TouchableOpacity>
             </View>
-            {
-                /* <View style={styles.box}>
-            </View> */
-            }
+            
+            <View style={styles.boxH}>
+
+            </View>
+            <View style={styles.boxV}>
+
+            </View>
         </View>
     );
 }
@@ -296,6 +232,23 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         alignItems: "center",
         justifyContent: "center",
+    },
+    boxH: {
+        position: "absolute",
+        top: "50%",
+        left: "45%",
+        width: "10%",
+        height: 2,
+        backgroundColor: "red"  
+    },
+    boxV: {
+        position: "absolute",
+        top: "50%",
+        left: "45%",
+        width: "10%",
+        height: 2,
+        transform: "rotate(90deg)",
+        backgroundColor: "red"  
     },
     message: {
         textAlign: "center",

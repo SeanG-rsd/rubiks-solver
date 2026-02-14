@@ -7,6 +7,8 @@ import { useCubeStore } from "@/context/CubeContext";
 import { useAnimatedReaction } from "react-native-reanimated";
 import { runOnJS } from "react-native-worklets";
 import { useFocusEffect } from "expo-router";
+import { organizeCube } from "@/scripts/organize-cube";
+import { FACE_ORDER } from "@/scripts/organize-cube";
 
 const RubiksCube = ({ modelRef, sides }) => {
     if (sides.length !== 6) {
@@ -17,9 +19,6 @@ const RubiksCube = ({ modelRef, sides }) => {
             </mesh>
         );
     }
-    // Replace with the path to your actual 3D model file
-    // const gltf = useGLTF(require("./path/to/your/model.glb")) as GLTF;
-    // return <primitive object={gltf.scene} scale={1} />
 
     let cubes = [];
 
@@ -36,27 +35,27 @@ const RubiksCube = ({ modelRef, sides }) => {
                 ];
 
                 if (y == -1) { // side 0
-                    sideColors[3] = sides[3][(1 - z) * 3 + x + 1];
+                    sideColors[3] = sides[FACE_ORDER.orange][(z + 1) * 3 + 1 - x];
                 }
 
                 if (y == 1) {
-                    sideColors[2] = sides[2][(z + 1) * 3 + x + 1];
+                    sideColors[2] = sides[FACE_ORDER.red][(1 - z) * 3 + 1 - x];
                 }
 
                 if (z == 1) { // side 1
-                    sideColors[4] = sides[4][(1 - y) * 3 + x + 1];
+                    sideColors[4] = sides[FACE_ORDER.white][(x + 1) * 3 + y + 1];
                 }
 
                 if (z == -1) { // side 1
-                    sideColors[5] = sides[5][(y + 1) * 3 + x + 1];
+                    sideColors[5] = sides[FACE_ORDER.yellow][(1 - x) * 3 + y + 1];
                 }
 
                 if (x == -1) { // yellow
-                    sideColors[1] = sides[1][(z + 1) * 3 + y + 1];
+                    sideColors[1] = sides[FACE_ORDER.blue][(1 - z) * 3 + 1 - y];
                 }
 
                 if (x == 1) { // white
-                    sideColors[0] = sides[0][(1 - z) * 3 + y + 1];
+                    sideColors[0] = sides[FACE_ORDER.green][(1 - z) * 3 + y + 1];
                 }
 
                 cubes.push(
@@ -100,6 +99,8 @@ export default function Solve() {
             modelRef.current.rotation.set(Math.PI / 4, Math.PI / 4, 0);
             cameraRef.current.reset();
         }
+
+        setCurrentSides(organizeCube([]))
     };
 
     useFocusEffect(
@@ -134,7 +135,7 @@ export default function Solve() {
             </Canvas>
             <View style={styles.buttonContainer}>
                 <TouchableOpacity style={styles.button} onPress={() => test()}>
-                    <Text style={styles.text}>Previous</Text>
+                    <Text style={styles.text}>Debug</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.button}>
                     <Text style={styles.text}>Next</Text>
