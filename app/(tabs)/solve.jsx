@@ -35,7 +35,7 @@ const RubiksCube = ({ modelRef, sides }) => {
                 ];
 
                 if (y == -1) { // side 0
-                    sideColors[3] = sides[FACE_ORDER.orange][(z + 1) * 3 + 1 - x];
+                    sideColors[3] = sides[FACE_ORDER.orange][(1 - z) * 3 + x + 1];
                 }
 
                 if (y == 1) {

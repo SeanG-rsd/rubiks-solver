@@ -4,7 +4,7 @@ export const cubeRanges = [
     {
         // High Red, very Low Green/Blue
         color: "red",
-        min: { red: 160, green: 0,   blue: 0,   alpha: 0} as Color,
+        min: { red: 120, green: 0,   blue: 0,   alpha: 0} as Color,
         max: { red: 255, green: 90,  blue: 90,  alpha: 255} as Color
     } as Range,
 
@@ -25,14 +25,14 @@ export const cubeRanges = [
     {
         // Low Red, High Green, Low/Medium Blue
         color: "green",
-        min: { red: 0,   green: 160, blue: 0,   alpha: 0} as Color,
+        min: { red: 0,   green: 140, blue: 0,   alpha: 0} as Color,
         max: { red: 110, green: 255, blue: 180, alpha: 255} as Color
     } as Range,
 
     {
         // Low Red, Low Green, High Blue
         color: "blue",
-        min: { red: 0,   green: 0,   blue: 160, alpha: 0} as Color,
+        min: { red: 0,   green: 0,   blue: 140, alpha: 0} as Color,
         max: { red: 100, green: 190, blue: 255, alpha: 255} as Color
     } as Range,
 

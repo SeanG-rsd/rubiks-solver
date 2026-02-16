@@ -8,6 +8,15 @@ export const FACE_ORDER = {
     yellow: 5,
 };
 
+const COLOR_TABLE = {
+    "white": FACE_ORDER.white,
+    "orange": FACE_ORDER.orange,
+    "green": FACE_ORDER.green,
+    "red": FACE_ORDER.red,
+    "blue": FACE_ORDER.blue,
+    "yellow": FACE_ORDER.yellow,
+};
+
 const rotateSideCW = (side: string[]) => {
     "worklet";
 
@@ -38,22 +47,6 @@ const EDGES = {
     left: [0, 3, 6],
 };
 
-// Check if edges match between two adjacent faces
-const checkEdgeMatch = (
-    face1: string[],
-    face1Edge: number[],
-    face2: string[],
-    face2Edge: number[],
-): boolean => {
-    "worklet";
-
-    return (
-        face1[face1Edge[0]] === face2[face2Edge[2]] &&
-        face1[face1Edge[1]] === face2[face2Edge[1]] &&
-        face1[face1Edge[2]] === face2[face2Edge[0]]
-    );
-};
-
 export const printCube = (cube: string[][]) => {
     "worklet";
     // Helper to get a short color code for better readability
@@ -69,7 +62,7 @@ export const printCube = (cube: string[][]) => {
 
     // Helper to format a 3x3 side
     const formatSide = (side: string[]): string[] => {
-        "worklet"
+        "worklet";
         const lines: string[] = [];
         for (let row = 0; row < 3; row++) {
             let line = "";
@@ -148,31 +141,44 @@ const checkCorner = (
     color3: string,
 ): boolean => {
     "worklet";
-    
+
     // Get the three colors sorted
     const colors = [color1, color2, color3].sort();
-    const key = colors.join('-');
-    
-    // Define all 8 valid corners of a standard Rubik's cube
-    // Each corner has exactly 3 specific colors
+    const key = colors.join("-");
+
     const validCorners: { [key: string]: boolean } = {
-        'blue-orange-white': true,
-        'blue-red-white': true,
-        'blue-orange-yellow': true,
-        'blue-red-yellow': true,
-        'green-orange-white': true,
-        'green-red-white': true,
-        'green-orange-yellow': true,
-        'green-red-yellow': true,
+        "blue-orange-white": true,
+        "blue-red-white": true,
+        "blue-orange-yellow": true,
+        "blue-red-yellow": true,
+        "green-orange-white": true,
+        "green-red-white": true,
+        "green-orange-yellow": true,
+        "green-red-yellow": true,
     };
-    
+
     return validCorners[key] === true;
 };
+
+const checkEdge = (
+    color1: string,
+    color2: string
+): boolean => {
+    "worklet"
+
+    const invalidPairs: { [key: string]: string} = {
+        "white": "yellow",
+        "red": "orange",
+        "green": "blue"
+    }
+
+    return color1 !== color2 && color1 !== invalidPairs[color2];
+}
 
 // Check if the cube orientation is valid by checking all 8 corners
 const isValidOrientation = (cube: string[][]): boolean => {
     "worklet";
-    
+
     // Define the 8 corners and which face positions they occupy
     // Format: [face_index, position_on_face]
     const corners = [
@@ -193,26 +199,94 @@ const isValidOrientation = (cube: string[][]): boolean => {
         // Bottom-back-right (yellow-blue-red)
         [[5, 8], [4, 6], [3, 8]],
     ];
-    
+
+    const edges = [
+        // white-green
+        [[0, 7], [2, 1]],
+        // white-orange
+        [[0, 3], [1, 1]],
+        // white-red
+        [[0, 5], [3, 1]],
+        // white-blue
+        [[0, 1], [4, 1]],
+        // yellow-green
+        [[5, 1], [2, 7]],
+        // yellow-orange
+        [[5, 3], [1, 7]],
+        // yellow-red
+        [[5, 5], [3, 7]],
+        // yellow-blue
+        [[5, 7], [4, 7]],
+        // green-red
+        [[2, 5], [3, 3]],
+        // green-orange
+        [[2, 3], [1, 5]],
+        // blue-red
+        [[4, 3], [3, 5]],
+        // blue-orange
+        [[4, 5], [1, 3]],
+    ]
+
+    let countColors = [0, 0, 0, 0, 0, 0];
+
     // Check each corner
     for (let i = 0; i < corners.length; i++) {
         const corner = corners[i];
         const color1 = cube[corner[0][0]][corner[0][1]];
         const color2 = cube[corner[1][0]][corner[1][1]];
         const color3 = cube[corner[2][0]][corner[2][1]];
-        
+
         if (!checkCorner(color1, color2, color3)) {
             return false;
         }
     }
-    
+
+    let seen: string[] = []
+
+    // Check each edge 
+    for (let i = 0; i < edges.length; i++) {
+        const edge = edges[i];
+        const color1 = cube[edge[0][0]][edge[0][1]]
+        const color2 = cube[edge[1][0]][edge[1][1]]
+
+        const colors = [color1, color2].sort();
+        const key = colors.join("-");
+
+        if (seen.some(p => p === key)) {
+            return false;
+        }
+
+        seen.push(key)
+
+        if (!checkEdge(color1, color2)) {
+            return false;
+        }
+    }
+
+    for (let i = 0; i < corners.length; i++) {
+        const corner = corners[i];
+        const color1: string = cube[corner[0][0]][corner[0][1]];
+        const color2: string = cube[corner[1][0]][corner[1][1]];
+        const color3: string = cube[corner[2][0]][corner[2][1]];
+
+        countColors[COLOR_TABLE[color1 as keyof typeof COLOR_TABLE]]++;
+        countColors[COLOR_TABLE[color2 as keyof typeof COLOR_TABLE]]++;
+        countColors[COLOR_TABLE[color3 as keyof typeof COLOR_TABLE]]++;
+    }
+
+    console.log(countColors);
+
     return true;
 };
 
 // Find correct orientation by trying all rotations and checking corners
 const findBestOrientation = (cube: string[][]): string[][] => {
     "worklet";
-    
+
+    let best: string[][] = [];
+
+    console.log("--- Begin Test ---");
+
     // Try all 4 rotations of the white (top) face
     for (let whiteRot = 0; whiteRot < 4; whiteRot++) {
         // Try all 4 rotations of the green (front) face
@@ -224,7 +298,7 @@ const findBestOrientation = (cube: string[][]): string[][] => {
                     testCube[i][j] = cube[i][j];
                 }
             }
-            
+
             // Apply rotations to white and green
             for (let r = 0; r < whiteRot; r++) {
                 rotateSideCW(testCube[0]);
@@ -232,32 +306,49 @@ const findBestOrientation = (cube: string[][]): string[][] => {
             for (let r = 0; r < greenRot; r++) {
                 rotateSideCW(testCube[2]);
             }
-            
+
             // Now orient the other 4 faces by trying all combinations
             for (let redRot = 0; redRot < 4; redRot++) {
                 for (let orangeRot = 0; orangeRot < 4; orangeRot++) {
                     for (let blueRot = 0; blueRot < 4; blueRot++) {
                         for (let yellowRot = 0; yellowRot < 4; yellowRot++) {
                             // Make another copy
-                            const fullTest: string[][] = [[], [], [], [], [], []];
+                            const fullTest: string[][] = [
+                                [],
+                                [],
+                                [],
+                                [],
+                                [],
+                                [],
+                            ];
                             for (let i = 0; i < 6; i++) {
                                 for (let j = 0; j < 9; j++) {
                                     fullTest[i][j] = testCube[i][j];
                                 }
                             }
-                            
+
                             // Apply remaining rotations
-                            for (let r = 0; r < redRot; r++) rotateSideCW(fullTest[3]);
-                            for (let r = 0; r < orangeRot; r++) rotateSideCW(fullTest[1]);
-                            for (let r = 0; r < blueRot; r++) rotateSideCW(fullTest[4]);
-                            for (let r = 0; r < yellowRot; r++) rotateSideCW(fullTest[5]);
-                            
+                            for (let r = 0; r < redRot; r++) {
+                                rotateSideCW(fullTest[3]);
+                            }
+                            for (let r = 0; r < orangeRot; r++) {
+                                rotateSideCW(fullTest[1]);
+                            }
+                            for (let r = 0; r < blueRot; r++) {
+                                rotateSideCW(fullTest[4]);
+                            }
+                            for (let r = 0; r < yellowRot; r++) {
+                                rotateSideCW(fullTest[5]);
+                            }
+
                             // Check if this orientation is valid
                             if (isValidOrientation(fullTest)) {
                                 console.log("Found valid orientation!");
-                                printCube(fullTest)
-                                console.log(`Rotations - W:${whiteRot} O:${orangeRot} G:${greenRot} R:${redRot} B:${blueRot} Y:${yellowRot}`);
-                                return fullTest;
+                                printCube(fullTest);
+                                console.log(
+                                    `Rotations - W:${whiteRot} O:${orangeRot} G:${greenRot} R:${redRot} B:${blueRot} Y:${yellowRot}`,
+                                );
+                                best = fullTest;
                             }
                         }
                     }
@@ -265,7 +356,13 @@ const findBestOrientation = (cube: string[][]): string[][] => {
             }
         }
     }
-    
+
+    console.log("----------------");
+
+    if (best.length === 6) {
+        return best;
+    }
+
     // If no valid orientation found, return original
     console.log("WARNING: Could not find valid cube orientation!");
     return cube;
@@ -273,7 +370,7 @@ const findBestOrientation = (cube: string[][]): string[][] => {
 
 export const organizeCube = (scannedSides: any) => {
     "worklet";
-    
+
     // Convert to proper array manually (worklet-safe)
     const sidesArray: string[][] = [];
     for (let i = 0; i < 6; i++) {
@@ -284,22 +381,22 @@ export const organizeCube = (scannedSides: any) => {
         }
         sidesArray[i] = sideArray;
     }
-    
+
     // Step 1: Sort by center colors
     const sortedCube: string[][] = [[], [], [], [], [], []];
-    
+
     for (let i = 0; i < sidesArray.length; i++) {
         const side = sidesArray[i];
         const centerColor = side[4];
         let index = -1;
-        
+
         if (centerColor === "white") index = 0;
         else if (centerColor === "orange") index = 1;
         else if (centerColor === "green") index = 2;
         else if (centerColor === "red") index = 3;
         else if (centerColor === "blue") index = 4;
         else if (centerColor === "yellow") index = 5;
-        
+
         // Deep copy the side
         for (let j = 0; j < 9; j++) {
             sortedCube[index][j] = side[j];
@@ -308,7 +405,7 @@ export const organizeCube = (scannedSides: any) => {
 
     // Step 2: Find the correct orientation using corner validation
     const orientedCube = findBestOrientation(sortedCube);
-    
+
     return orientedCube;
 };
 

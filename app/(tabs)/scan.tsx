@@ -156,6 +156,8 @@ export default function ScanScreen() {
         detectedSides.value = [];
         validCube.value = false;
         console.log(detectedSides.value.length);
+
+        // organizeCube(detectedSides.value)
     };
 
     if (!permission) {
