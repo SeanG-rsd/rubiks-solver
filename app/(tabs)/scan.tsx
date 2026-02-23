@@ -28,6 +28,7 @@ import { useDerivedValue } from "react-native-reanimated";
 import { useSharedValue } from "react-native-worklets-core";
 import { useResizePlugin } from "vision-camera-resize-plugin";
 import { organizeCube, printCube, validCubeColors } from "@/scripts/organize-cube";
+import { cubeToString } from "@/scripts/solve-cube";
 
 const paint = Skia.Paint();
 paint.setStyle(PaintStyle.Fill);

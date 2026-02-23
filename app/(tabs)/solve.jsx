@@ -9,6 +9,7 @@ import { runOnJS } from "react-native-worklets";
 import { useFocusEffect } from "expo-router";
 import { organizeCube } from "@/scripts/organize-cube";
 import { FACE_ORDER } from "@/scripts/organize-cube";
+import { cubeToString } from "@/scripts/solve-cube";
 
 const RubiksCube = ({ modelRef, sides }) => {
     if (sides.length !== 6) {
@@ -99,9 +100,12 @@ export default function Solve() {
             modelRef.current.rotation.set(Math.PI / 4, Math.PI / 4, 0);
             cameraRef.current.reset();
         }
-
-        setCurrentSides(organizeCube([]))
     };
+
+    const solve = () => {
+        detectedSides.value = organizeCube(detectedSides.value);
+        cubeToString(detectedSides.value)
+    }
 
     useFocusEffect(
         useCallback(() => {
@@ -137,7 +141,7 @@ export default function Solve() {
                 <TouchableOpacity style={styles.button} onPress={() => test()}>
                     <Text style={styles.text}>Debug</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.button}>
+                <TouchableOpacity style={styles.button} onPress={() => solve()}>
                     <Text style={styles.text}>Next</Text>
                 </TouchableOpacity>
             </View>

@@ -8,7 +8,7 @@ export const FACE_ORDER = {
     yellow: 5,
 };
 
-const COLOR_TABLE = {
+export const COLOR_TABLE: {[key: string]: number} = {
     "white": FACE_ORDER.white,
     "orange": FACE_ORDER.orange,
     "green": FACE_ORDER.green,
@@ -388,14 +388,7 @@ export const organizeCube = (scannedSides: any) => {
     for (let i = 0; i < sidesArray.length; i++) {
         const side = sidesArray[i];
         const centerColor = side[4];
-        let index = -1;
-
-        if (centerColor === "white") index = 0;
-        else if (centerColor === "orange") index = 1;
-        else if (centerColor === "green") index = 2;
-        else if (centerColor === "red") index = 3;
-        else if (centerColor === "blue") index = 4;
-        else if (centerColor === "yellow") index = 5;
+        let index = COLOR_TABLE[centerColor];
 
         // Deep copy the side
         for (let j = 0; j < 9; j++) {
