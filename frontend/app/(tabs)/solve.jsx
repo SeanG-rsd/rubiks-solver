@@ -9,7 +9,7 @@ import { runOnJS } from "react-native-worklets";
 import { useFocusEffect } from "expo-router";
 import { organizeCube } from "@/scripts/organize-cube";
 import { FACE_ORDER } from "@/scripts/organize-cube";
-import { cubeToString } from "@/scripts/solve-cube";
+import { cubeToString, solveCube } from "@/scripts/solve-cube";
 
 const RubiksCube = ({ modelRef, sides }) => {
     if (sides.length !== 6) {
@@ -102,9 +102,12 @@ export default function Solve() {
         }
     };
 
-    const solve = () => {
-        detectedSides.value = organizeCube(detectedSides.value);
-        cubeToString(detectedSides.value)
+    const solve = async () => {
+        //detectedSides.value = organizeCube(detectedSides.value);
+        const cube = cubeToString(detectedSides.value)
+        const algorithm = await solveCube(cube)
+
+        console.log(algorithm)
     }
 
     useFocusEffect(

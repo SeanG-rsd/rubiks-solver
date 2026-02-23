@@ -50,6 +50,27 @@ const conversionTable: { [key: string]: string } = {
 
 const reorder = [0, 3, 2, 5, 1, 4];
 
+export const solveCube = async (cube: string) => {
+    try {
+        const response = await fetch("http://10.8.146.210:8000/solve", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ "cube": cube }),
+        });
+
+        console.log("HERE")
+
+        const data = await response.json();
+
+        return data.solution;
+    } catch (e) {
+        console.log(e);
+        return "NOOOOOOO";
+    }
+};
+
 export const cubeToString = (cube: string[][]) => {
     let output = [..."UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB"];
 
@@ -58,13 +79,13 @@ export const cubeToString = (cube: string[][]) => {
     kociembaOrder.map((color, kociembaIdx) => {
         const internalIdx = COLOR_TABLE[color];
         const side = reorder[internalIdx];
-        console.log(side)
+        console.log(side);
 
         for (let i = 0; i < 9; i++) {
             let idx = kociembaIdx * 9 + i;
             output[idx] = conversionTable[cube[internalIdx][i]];
         }
-        console.log(output.join(""))
+        console.log(output.join(""));
     });
 
     const s = output.join("");
