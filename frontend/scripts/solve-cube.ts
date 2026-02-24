@@ -37,7 +37,7 @@ FFLFULRFBDFDURULDRFURLFBFBULDBDDRLRBRDULLBBLUFRDRBUUBD
  *
  */
 
-import { COLOR_TABLE, FACE_ORDER } from "./organize-cube";
+import { COLOR_TABLE } from "./organize-cube";
 
 const conversionTable: { [key: string]: string } = {
     "white": "U",
@@ -52,7 +52,7 @@ const reorder = [0, 3, 2, 5, 1, 4];
 
 export const solveCube = async (cube: string) => {
     try {
-        const response = await fetch("http://10.8.146.210:8000/solve", {
+        const response = await fetch("http://10.8.146.172:8000/solve", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -60,14 +60,11 @@ export const solveCube = async (cube: string) => {
             body: JSON.stringify({ "cube": cube }),
         });
 
-        console.log("HERE")
-
         const data = await response.json();
 
         return data.solution;
     } catch (e) {
-        console.log(e);
-        return "NOOOOOOO";
+        return e;
     }
 };
 
@@ -79,18 +76,12 @@ export const cubeToString = (cube: string[][]) => {
     kociembaOrder.map((color, kociembaIdx) => {
         const internalIdx = COLOR_TABLE[color];
         const side = reorder[internalIdx];
-        console.log(side);
 
         for (let i = 0; i < 9; i++) {
             let idx = kociembaIdx * 9 + i;
             output[idx] = conversionTable[cube[internalIdx][i]];
         }
-        console.log(output.join(""));
     });
-
-    const s = output.join("");
-    console.log(s);
-    console.log(s.length);
 
     return output.join("");
 };

@@ -1,15 +1,62 @@
-import { Canvas, useFrame } from "@react-three/fiber/native";
-import { Environment, OrbitControls, useGLTF } from "@react-three/drei/native";
-import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useIsFocused, useTheme } from "@react-navigation/native";
+import { Canvas } from "@react-three/fiber/native";
+import { OrbitControls, useGLTF } from "@react-three/drei/native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Suspense, useCallback, useRef, useState } from "react";
+import { useIsFocused } from "@react-navigation/native";
 import { useCubeStore } from "@/context/CubeContext";
-import { useAnimatedReaction } from "react-native-reanimated";
-import { runOnJS } from "react-native-worklets";
 import { useFocusEffect } from "expo-router";
-import { organizeCube } from "@/scripts/organize-cube";
 import { FACE_ORDER } from "@/scripts/organize-cube";
 import { cubeToString, solveCube } from "@/scripts/solve-cube";
+
+useGLTF.preload(require("../../assets/models/rubiks.glb"));
+
+function Rubiks({ modelRef, sides }) {
+    const { scene } = useGLTF(require("../../assets/models/rubiks.glb"));
+    console.log("--- START ---");
+
+    let cubieRefs = [[]];
+    let currCubie = [];
+    let startsWith = "Cube_";
+    let count = 1;
+
+    scene.traverse((child) => {
+        if (child.isMesh && child.name.startsWith(startsWith)) {
+            currCubie.push(child);
+            console.log("Found piece:", child.name);
+            child.visible = true;
+        } else if (child.isMesh) {
+            cubieRefs.push(currCubie);
+            currCubie = [];
+            if (startsWith === "Cube_") {
+                startsWith = "Cube001";
+            } else {
+                count++;
+                if (count < 10) {
+                    startsWith = `Cube00${count}`;
+                } else {
+                    startsWith = `Cube0${count}`;
+                }
+            }
+        }
+    });
+    let show = 9
+    cubieRefs.forEach((meshes, index) => {
+        meshes.forEach((mesh) => {
+            mesh.visible = index === show;
+        });
+    });
+
+    console.log(cubieRefs.length);
+
+    return (
+        <primitive
+            ref={modelRef}
+            object={scene}
+            scale={0.3}
+            position={[0, 0, 0]}
+        />
+    );
+}
 
 const RubiksCube = ({ modelRef, sides }) => {
     if (sides.length !== 6) {
@@ -36,7 +83,8 @@ const RubiksCube = ({ modelRef, sides }) => {
                 ];
 
                 if (y == -1) { // side 0
-                    sideColors[3] = sides[FACE_ORDER.orange][(1 - z) * 3 + x + 1];
+                    sideColors[3] =
+                        sides[FACE_ORDER.orange][(1 - z) * 3 + x + 1];
                 }
 
                 if (y == 1) {
@@ -44,11 +92,13 @@ const RubiksCube = ({ modelRef, sides }) => {
                 }
 
                 if (z == 1) { // side 1
-                    sideColors[4] = sides[FACE_ORDER.white][(x + 1) * 3 + y + 1];
+                    sideColors[4] =
+                        sides[FACE_ORDER.white][(x + 1) * 3 + y + 1];
                 }
 
                 if (z == -1) { // side 1
-                    sideColors[5] = sides[FACE_ORDER.yellow][(1 - x) * 3 + y + 1];
+                    sideColors[5] =
+                        sides[FACE_ORDER.yellow][(1 - x) * 3 + y + 1];
                 }
 
                 if (x == -1) { // yellow
@@ -56,7 +106,8 @@ const RubiksCube = ({ modelRef, sides }) => {
                 }
 
                 if (x == 1) { // white
-                    sideColors[0] = sides[FACE_ORDER.green][(1 - z) * 3 + y + 1];
+                    sideColors[0] =
+                        sides[FACE_ORDER.green][(1 - z) * 3 + y + 1];
                 }
 
                 cubes.push(
@@ -89,34 +140,39 @@ export default function Solve() {
     const modelRef = useRef();
     const cameraRef = useRef();
 
+    const [resetKey, setResetKey] = useState(0);
+
+    const reloadCanvas = () => setResetKey((prev) => prev + 1);
+
     const isFocused = useIsFocused();
 
     const { detectedSides, validCube } = useCubeStore();
 
     const [currentSides, setCurrentSides] = useState([]);
 
-    const test = () => {
+    const debug = () => {
         if (cameraRef.current && modelRef.current) {
             modelRef.current.rotation.set(Math.PI / 4, Math.PI / 4, 0);
             cameraRef.current.reset();
         }
+
+        reloadCanvas();
     };
 
     const solve = async () => {
-        //detectedSides.value = organizeCube(detectedSides.value);
-        const cube = cubeToString(detectedSides.value)
-        const algorithm = await solveCube(cube)
+        const cube = cubeToString(detectedSides.value);
+        const algorithm = await solveCube(cube);
 
-        console.log(algorithm)
-    }
+        console.log(algorithm);
+    };
 
     useFocusEffect(
         useCallback(() => {
             if (validCube.value) {
-                console.log("VALID")
+                console.log("VALID");
                 setCurrentSides(detectedSides.value);
             } else {
-                setCurrentSides([])
+                setCurrentSides([]);
             }
         }, []),
     );
@@ -126,11 +182,13 @@ export default function Solve() {
             <Canvas
                 style={styles.canvas}
                 frameloop={isFocused ? "always" : "never"}
+                key={resetKey}
             >
                 <ambientLight intensity={2.0} />
                 <directionalLight color="white" position={[1, 1, 2]} />
-                <Suspense fallback={<Text>Loading...</Text>}>
-                    <RubiksCube modelRef={modelRef} sides={currentSides} />
+                <Suspense fallback={null}>
+                    {/* <RubiksCube modelRef={modelRef} sides={currentSides} /> */}
+                    <Rubiks modelRef={modelRef}></Rubiks>
                     <OrbitControls
                         enableRotate={true}
                         rotateSpeed={2.5}
@@ -141,11 +199,11 @@ export default function Solve() {
                 </Suspense>
             </Canvas>
             <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.button} onPress={() => test()}>
+                <TouchableOpacity style={styles.button} onPress={() => debug()}>
                     <Text style={styles.text}>Debug</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.button} onPress={() => solve()}>
-                    <Text style={styles.text}>Next</Text>
+                    <Text style={styles.text}>Solve</Text>
                 </TouchableOpacity>
             </View>
         </View>

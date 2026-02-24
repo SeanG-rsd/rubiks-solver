@@ -348,7 +348,7 @@ const findBestOrientation = (cube: string[][]): string[][] => {
                                 console.log(
                                     `Rotations - W:${whiteRot} O:${orangeRot} G:${greenRot} R:${redRot} B:${blueRot} Y:${yellowRot}`,
                                 );
-                                best = fullTest;
+                                return fullTest;
                             }
                         }
                     }
@@ -358,10 +358,6 @@ const findBestOrientation = (cube: string[][]): string[][] => {
     }
 
     console.log("----------------");
-
-    if (best.length === 6) {
-        return best;
-    }
 
     // If no valid orientation found, return original
     console.log("WARNING: Could not find valid cube orientation!");

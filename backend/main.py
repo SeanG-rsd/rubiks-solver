@@ -14,7 +14,6 @@ app.add_middleware(
 
 @app.post("/solve")
 async def solve(request: Request):
-    print("here")
     data = await request.json()
     cube = data['cube']
 

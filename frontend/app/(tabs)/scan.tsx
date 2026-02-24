@@ -18,17 +18,15 @@ import {
 
 import { useIsFocused } from "@react-navigation/native";
 
-import { cubeRanges, SortedCubeLookup } from "@/constants/variables";
+import { cubeRanges } from "@/constants/variables";
 import { useCubeStore } from "@/context/CubeContext";
 import {
     PaintStyle,
     Skia
 } from "@shopify/react-native-skia";
-import { useDerivedValue } from "react-native-reanimated";
 import { useSharedValue } from "react-native-worklets-core";
 import { useResizePlugin } from "vision-camera-resize-plugin";
 import { organizeCube, printCube, validCubeColors } from "@/scripts/organize-cube";
-import { cubeToString } from "@/scripts/solve-cube";
 
 const paint = Skia.Paint();
 paint.setStyle(PaintStyle.Fill);
@@ -153,12 +151,8 @@ export default function ScanScreen() {
     }, [resize]);
 
     const resetSides = () => {
-        printCube(detectedSides.value)
         detectedSides.value = [];
         validCube.value = false;
-        console.log(detectedSides.value.length);
-
-        // organizeCube(detectedSides.value)
     };
 
     if (!permission) {
@@ -191,14 +185,6 @@ export default function ScanScreen() {
                 pixelFormat="rgb"
             />
 
-            {/* <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-                <Line
-                    
-                    color="red"
-                    style="stroke"
-                    strokeWidth={2} p1={[0,0]} p2={undefined}                />
-            </Canvas> */}
-
             <View style={styles.buttonContainer}>
                 <TouchableOpacity
                     style={styles.button}
@@ -207,13 +193,8 @@ export default function ScanScreen() {
                     <Text style={styles.text}>Reset Scan</Text>
                 </TouchableOpacity>
             </View>
-            
-            <View style={styles.boxH}>
 
-            </View>
-            <View style={styles.boxV}>
-
-            </View>
+            <View style={styles.box}></View>
         </View>
     );
 }
@@ -225,14 +206,14 @@ const styles = StyleSheet.create({
     },
     box: {
         position: "absolute",
-        top: "30%",
+        top: "32.5%",
         left: "15%",
         backgroundColor: "transparent",
-        width: "70%",
+        width: 250,
         aspectRatio: "1/1",
         borderColor: "white",
         borderWidth: 10,
-        borderRadius: 20,
+        borderRadius: 15,
         alignItems: "center",
         justifyContent: "center",
     },
