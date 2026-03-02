@@ -10,43 +10,129 @@ import { cubeToString, solveCube } from "@/scripts/solve-cube";
 
 useGLTF.preload(require("../../assets/models/rubiks.glb"));
 
+import * as THREE from "three";
+
+function applySideColors(sortedMeshes, sideColors) {
+    sortedMeshes.forEach((mesh, i) => {
+        mesh.material = mesh.material.clone();
+        mesh.material.color.set(sideColors[i]);
+    });
+}
+
+function getGeometryCenter(mesh) {
+    mesh.geometry.computeBoundingBox();
+    const center = new THREE.Vector3();
+    mesh.geometry.boundingBox.getCenter(center);
+    return center;
+}
+
 function Rubiks({ modelRef, sides }) {
-    const { scene } = useGLTF(require("../../assets/models/rubiks.glb"));
-    console.log("--- START ---");
+    if (sides.length !== 6) {
+        return (
+            <mesh position={[0, 0, 0]}>
+                <boxGeometry args={[2, 2, 2]}></boxGeometry>
+                <meshStandardMaterial color={"red"}></meshStandardMaterial>
+            </mesh>
+        );
+    }
 
-    let cubieRefs = [[]];
-    let currCubie = [];
-    let startsWith = "Cube_";
-    let count = 1;
+    const pivotRef = useRef(new THREE.Group());
 
-    scene.traverse((child) => {
-        if (child.isMesh && child.name.startsWith(startsWith)) {
-            currCubie.push(child);
-            console.log("Found piece:", child.name);
-            child.visible = true;
-        } else if (child.isMesh) {
-            cubieRefs.push(currCubie);
-            currCubie = [];
-            if (startsWith === "Cube_") {
-                startsWith = "Cube001";
-            } else {
-                count++;
-                if (count < 10) {
-                    startsWith = `Cube00${count}`;
-                } else {
-                    startsWith = `Cube0${count}`;
-                }
+    const handleUMove = (isClockwise = true) => {
+        const angle = isClockwise ? -Math.PI / 2 : Math.PI / 2;
+        const topY = 2.5; // Based on your code's threshold
+
+        const topPieces = [];
+        scene.traverse((child) => {
+            if (child.isMesh) {
+                const pos = new THREE.Vector3();
+                child.getWorldPosition(pos);
+                if (pos.y > 1.5) topPieces.push(child);
             }
+        });
+
+        // Move pieces to pivot, rotate pivot, then move back.
+        // NOTE: In React, it's often easier to use an animation library
+        // to avoid messy state management during the rotation.
+    };
+
+    const { scene } = useGLTF(require("../../assets/models/rubiks.glb"));
+
+    // Collect all sticker meshes
+    const allMeshes = [];
+    scene.traverse((child) => {
+        if (child.isMesh) {
+            child.visible = true;
+            const color = child.material.color;
+            const isDark = color.r < 0.1 && color.g < 0.1 && color.b < 0.1;
+            if (!isDark) allMeshes.push(child);
         }
     });
-    let show = 9
-    cubieRefs.forEach((meshes, index) => {
-        meshes.forEach((mesh) => {
-            mesh.visible = index === show;
-        });
-    });
 
-    console.log(cubieRefs.length);
+    //allMeshes.forEach(m => console.log(m.name, getGeometryCenter(m)));
+
+    const threshold = 2.5; // tune to your model's scale
+
+    // Up (white) - U1 is back-left, U9 is front-right
+    const top = allMeshes
+        .filter((m) => getGeometryCenter(m).y > 2.5)
+        .sort((a, b) => {
+            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+            if (Math.abs(pa.z - pb.z) > 0.01) return pa.z - pb.z; // z- first (back = top row)
+            return pa.x - pb.x; // x- first (left to right)
+        });
+
+    // Down (yellow) - D1 is front-left, D9 is back-right
+    const bottom = allMeshes
+        .filter((m) => getGeometryCenter(m).y < -2.5)
+        .sort((a, b) => {
+            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+            if (Math.abs(pa.z - pb.z) > 0.01) return pb.z - pa.z; // z+ first (front = top row)
+            return pa.x - pb.x;
+        });
+
+    // Front (green) - F1 is top-left, F9 is bottom-right
+    const front = allMeshes
+        .filter((m) => getGeometryCenter(m).z > 2.5)
+        .sort((a, b) => {
+            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+            if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y; // y+ first (top row)
+            return pa.x - pb.x;
+        });
+
+    // Back (blue) - B1 is top-left when facing back (x+ side)
+    const back = allMeshes
+        .filter((m) => getGeometryCenter(m).z < -2.5)
+        .sort((a, b) => {
+            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+            if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y;
+            return pb.x - pa.x; // x+ first (mirrored when facing back)
+        });
+
+    // Right (red) - R1 is top-left when facing right (z+ side)
+    const right = allMeshes
+        .filter((m) => getGeometryCenter(m).x > 2.5)
+        .sort((a, b) => {
+            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+            if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y;
+            return pb.z - pa.z; // z- first (front = left side when facing right)
+        });
+
+    // Left (orange) - L1 is top-left when facing left (z- side)
+    const left = allMeshes
+        .filter((m) => getGeometryCenter(m).x < -2.5)
+        .sort((a, b) => {
+            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+            if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y;
+            return pa.z - pb.z; // z+ first (front = left side when facing left... mirrored)
+        });
+
+    applySideColors(top, sides[FACE_ORDER.white]);
+    applySideColors(left, sides[FACE_ORDER.orange]);
+    applySideColors(front, sides[FACE_ORDER.green]);
+    applySideColors(right, sides[FACE_ORDER.red]);
+    applySideColors(back, sides[FACE_ORDER.blue]);
+    applySideColors(bottom, sides[FACE_ORDER.yellow]);
 
     return (
         <primitive
@@ -57,84 +143,6 @@ function Rubiks({ modelRef, sides }) {
         />
     );
 }
-
-const RubiksCube = ({ modelRef, sides }) => {
-    if (sides.length !== 6) {
-        return (
-            <mesh position={[0, 0, 0]}>
-                <boxGeometry args={[2, 2, 2]}></boxGeometry>
-                <meshStandardMaterial color={"red"}></meshStandardMaterial>
-            </mesh>
-        );
-    }
-
-    let cubes = [];
-
-    for (let x = -1; x <= 1; x++) {
-        for (let y = -1; y <= 1; y++) {
-            for (let z = -1; z <= 1; z++) {
-                let sideColors = [
-                    "black",
-                    "black",
-                    "black",
-                    "black",
-                    "black",
-                    "black",
-                ];
-
-                if (y == -1) { // side 0
-                    sideColors[3] =
-                        sides[FACE_ORDER.orange][(1 - z) * 3 + x + 1];
-                }
-
-                if (y == 1) {
-                    sideColors[2] = sides[FACE_ORDER.red][(1 - z) * 3 + 1 - x];
-                }
-
-                if (z == 1) { // side 1
-                    sideColors[4] =
-                        sides[FACE_ORDER.white][(x + 1) * 3 + y + 1];
-                }
-
-                if (z == -1) { // side 1
-                    sideColors[5] =
-                        sides[FACE_ORDER.yellow][(1 - x) * 3 + y + 1];
-                }
-
-                if (x == -1) { // yellow
-                    sideColors[1] = sides[FACE_ORDER.blue][(1 - z) * 3 + 1 - y];
-                }
-
-                if (x == 1) { // white
-                    sideColors[0] =
-                        sides[FACE_ORDER.green][(1 - z) * 3 + y + 1];
-                }
-
-                cubes.push(
-                    <mesh
-                        position={[x * 0.52, y * 0.52, z * 0.52]}
-                        key={`${x}-${y}-${z}`}
-                    >
-                        <boxGeometry args={[0.5, 0.5, 0.5]} />
-                        {sideColors.map((c, i) => (
-                            <meshStandardMaterial
-                                key={i}
-                                attach={`material-${i}`}
-                                color={c}
-                            />
-                        ))}
-                    </mesh>,
-                );
-            }
-        }
-    }
-
-    return (
-        <group ref={modelRef}>
-            {cubes}
-        </group>
-    );
-};
 
 export default function Solve() {
     const modelRef = useRef();
@@ -188,7 +196,7 @@ export default function Solve() {
                 <directionalLight color="white" position={[1, 1, 2]} />
                 <Suspense fallback={null}>
                     {/* <RubiksCube modelRef={modelRef} sides={currentSides} /> */}
-                    <Rubiks modelRef={modelRef}></Rubiks>
+                    <Rubiks modelRef={modelRef} sides={currentSides}></Rubiks>
                     <OrbitControls
                         enableRotate={true}
                         rotateSpeed={2.5}
