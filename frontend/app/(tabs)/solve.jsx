@@ -1,7 +1,7 @@
 import { Canvas } from "@react-three/fiber/native";
 import { OrbitControls, useGLTF } from "@react-three/drei/native";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Suspense, useCallback, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { useCubeStore } from "@/context/CubeContext";
 import { useFocusEffect } from "expo-router";
@@ -26,7 +26,7 @@ function getGeometryCenter(mesh) {
     return center;
 }
 
-function Rubiks({ modelRef, sides }) {
+function Rubiks({ modelRef, sides, currentMove, onMoveComplete }) {
     if (sides.length !== 6) {
         return (
             <mesh position={[0, 0, 0]}>
@@ -36,112 +36,143 @@ function Rubiks({ modelRef, sides }) {
         );
     }
 
-    const pivotRef = useRef(new THREE.Group());
+    const isColorsApplied = useRef(false);
+    const isAnimating = useRef(false);
+    const { scene } = useGLTF(require("../../assets/models/rubiks.glb"));
+
+    useLayoutEffect(() => {
+        if (!scene || isColorsApplied.current || !sides.length) return;
+
+        // Collect all sticker meshes
+        const allMeshes = [];
+        scene.traverse((child) => {
+            if (child.isMesh) {
+                child.visible = true;
+                const color = child.material.color;
+                const isDark = color.r < 0.1 && color.g < 0.1 && color.b < 0.1;
+                if (!isDark) allMeshes.push(child);
+            }
+        });
+
+        //allMeshes.forEach(m => console.log(m.name, getGeometryCenter(m)));
+
+        const threshold = 2.5; // tune to your model's scale
+
+        // Up (white) - U1 is back-left, U9 is front-right
+        const top = allMeshes
+            .filter((m) => getGeometryCenter(m).y > 2.5)
+            .sort((a, b) => {
+                const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+                if (Math.abs(pa.z - pb.z) > 0.01) return pa.z - pb.z; // z- first (back = top row)
+                return pa.x - pb.x; // x- first (left to right)
+            });
+
+        // Down (yellow) - D1 is front-left, D9 is back-right
+        const bottom = allMeshes
+            .filter((m) => getGeometryCenter(m).y < -2.5)
+            .sort((a, b) => {
+                const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+                if (Math.abs(pa.z - pb.z) > 0.01) return pb.z - pa.z; // z+ first (front = top row)
+                return pa.x - pb.x;
+            });
+
+        // Front (green) - F1 is top-left, F9 is bottom-right
+        const front = allMeshes
+            .filter((m) => getGeometryCenter(m).z > 2.5)
+            .sort((a, b) => {
+                const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+                if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y; // y+ first (top row)
+                return pa.x - pb.x;
+            });
+
+        // Back (blue) - B1 is top-left when facing back (x+ side)
+        const back = allMeshes
+            .filter((m) => getGeometryCenter(m).z < -2.5)
+            .sort((a, b) => {
+                const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+                if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y;
+                return pb.x - pa.x; // x+ first (mirrored when facing back)
+            });
+
+        // Right (red) - R1 is top-left when facing right (z+ side)
+        const right = allMeshes
+            .filter((m) => getGeometryCenter(m).x > 2.5)
+            .sort((a, b) => {
+                const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+                if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y;
+                return pb.z - pa.z; // z- first (front = left side when facing right)
+            });
+
+        // Left (orange) - L1 is top-left when facing left (z- side)
+        const left = allMeshes
+            .filter((m) => getGeometryCenter(m).x < -2.5)
+            .sort((a, b) => {
+                const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
+                if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y;
+                return pa.z - pb.z; // z+ first (front = left side when facing left... mirrored)
+            });
+
+        applySideColors(top, sides[FACE_ORDER.white]);
+        applySideColors(left, sides[FACE_ORDER.orange]);
+        applySideColors(front, sides[FACE_ORDER.green]);
+        applySideColors(right, sides[FACE_ORDER.red]);
+        applySideColors(back, sides[FACE_ORDER.blue]);
+        applySideColors(bottom, sides[FACE_ORDER.yellow]);
+
+        isColorsApplied.current = true; // Mark as done so it never runs again
+        console.log("here?")
+    }, [scene, sides]);
+
+    useEffect(() => {
+        console.log("here!!!!")
+        console.log(currentMove)
+        if (currentMove !== "" && !isAnimating.current) {
+            handleUMove();
+        }
+    }, [currentMove]);
 
     const handleUMove = (isClockwise = true) => {
         const angle = isClockwise ? -Math.PI / 2 : Math.PI / 2;
         const topY = 2.5; // Based on your code's threshold
 
+        const pivot = new THREE.Group();
+        scene.add(pivot);
+
+        console.log("lakdj")
+
         const topPieces = [];
         scene.traverse((child) => {
             if (child.isMesh) {
-                const pos = new THREE.Vector3();
-                child.getWorldPosition(pos);
-                if (pos.y > 1.5) topPieces.push(child);
+                const pos = getGeometryCenter(child);
+                if (pos.y > 0.5) topPieces.push(child);
             }
         });
 
-        // Move pieces to pivot, rotate pivot, then move back.
-        // NOTE: In React, it's often easier to use an animation library
-        // to avoid messy state management during the rotation.
+        topPieces.forEach((piece) => {
+            pivot.attach(piece);
+        });
+
+        console.log(angle)
+        console.log(topPieces.length)
+
+        // 3. Perform the rotation
+        pivot.rotateY(angle);
+
+        pivot.updateMatrixWorld(true);
+
+        // 4. Critical: Return pieces to the scene
+        // We use a while loop or slice because scene.attach removes it from the pivot
+        while (pivot.children.length > 0) {
+            scene.attach(pivot.children[0]);
+        }
+
+        // 5. Cleanup
+        scene.remove(pivot);
+
+        onMoveComplete();
     };
 
-    const { scene } = useGLTF(require("../../assets/models/rubiks.glb"));
-
-    // Collect all sticker meshes
-    const allMeshes = [];
-    scene.traverse((child) => {
-        if (child.isMesh) {
-            child.visible = true;
-            const color = child.material.color;
-            const isDark = color.r < 0.1 && color.g < 0.1 && color.b < 0.1;
-            if (!isDark) allMeshes.push(child);
-        }
-    });
-
-    //allMeshes.forEach(m => console.log(m.name, getGeometryCenter(m)));
-
-    const threshold = 2.5; // tune to your model's scale
-
-    // Up (white) - U1 is back-left, U9 is front-right
-    const top = allMeshes
-        .filter((m) => getGeometryCenter(m).y > 2.5)
-        .sort((a, b) => {
-            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
-            if (Math.abs(pa.z - pb.z) > 0.01) return pa.z - pb.z; // z- first (back = top row)
-            return pa.x - pb.x; // x- first (left to right)
-        });
-
-    // Down (yellow) - D1 is front-left, D9 is back-right
-    const bottom = allMeshes
-        .filter((m) => getGeometryCenter(m).y < -2.5)
-        .sort((a, b) => {
-            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
-            if (Math.abs(pa.z - pb.z) > 0.01) return pb.z - pa.z; // z+ first (front = top row)
-            return pa.x - pb.x;
-        });
-
-    // Front (green) - F1 is top-left, F9 is bottom-right
-    const front = allMeshes
-        .filter((m) => getGeometryCenter(m).z > 2.5)
-        .sort((a, b) => {
-            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
-            if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y; // y+ first (top row)
-            return pa.x - pb.x;
-        });
-
-    // Back (blue) - B1 is top-left when facing back (x+ side)
-    const back = allMeshes
-        .filter((m) => getGeometryCenter(m).z < -2.5)
-        .sort((a, b) => {
-            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
-            if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y;
-            return pb.x - pa.x; // x+ first (mirrored when facing back)
-        });
-
-    // Right (red) - R1 is top-left when facing right (z+ side)
-    const right = allMeshes
-        .filter((m) => getGeometryCenter(m).x > 2.5)
-        .sort((a, b) => {
-            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
-            if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y;
-            return pb.z - pa.z; // z- first (front = left side when facing right)
-        });
-
-    // Left (orange) - L1 is top-left when facing left (z- side)
-    const left = allMeshes
-        .filter((m) => getGeometryCenter(m).x < -2.5)
-        .sort((a, b) => {
-            const pa = getGeometryCenter(a), pb = getGeometryCenter(b);
-            if (Math.abs(pa.y - pb.y) > 0.01) return pb.y - pa.y;
-            return pa.z - pb.z; // z+ first (front = left side when facing left... mirrored)
-        });
-
-    applySideColors(top, sides[FACE_ORDER.white]);
-    applySideColors(left, sides[FACE_ORDER.orange]);
-    applySideColors(front, sides[FACE_ORDER.green]);
-    applySideColors(right, sides[FACE_ORDER.red]);
-    applySideColors(back, sides[FACE_ORDER.blue]);
-    applySideColors(bottom, sides[FACE_ORDER.yellow]);
-
-    return (
-        <primitive
-            ref={modelRef}
-            object={scene}
-            scale={0.3}
-            position={[0, 0, 0]}
-        />
-    );
+    return <primitive object={scene} scale={0.3} />;
 }
 
 export default function Solve() {
@@ -158,13 +189,16 @@ export default function Solve() {
 
     const [currentSides, setCurrentSides] = useState([]);
 
-    const debug = () => {
-        if (cameraRef.current && modelRef.current) {
-            modelRef.current.rotation.set(Math.PI / 4, Math.PI / 4, 0);
-            cameraRef.current.reset();
-        }
+    const [nextMove, setNextMove] = useState("");
 
-        reloadCanvas();
+    const debug = () => {
+        setNextMove("t");
+        // if (cameraRef.current && modelRef.current) {
+        //     modelRef.current.rotation.set(Math.PI / 4, Math.PI / 4, 0);
+        //     cameraRef.current.reset();
+        // }
+
+        // reloadCanvas();
     };
 
     const solve = async () => {
@@ -195,8 +229,13 @@ export default function Solve() {
                 <ambientLight intensity={2.0} />
                 <directionalLight color="white" position={[1, 1, 2]} />
                 <Suspense fallback={null}>
-                    {/* <RubiksCube modelRef={modelRef} sides={currentSides} /> */}
-                    <Rubiks modelRef={modelRef} sides={currentSides}></Rubiks>
+                    <Rubiks
+                        modelRef={modelRef}
+                        sides={currentSides}
+                        currentMove={nextMove}
+                        onMoveComplete={() => setNextMove("")}
+                    >
+                    </Rubiks>
                     <OrbitControls
                         enableRotate={true}
                         rotateSpeed={2.5}
