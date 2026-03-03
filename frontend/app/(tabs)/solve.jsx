@@ -40,6 +40,8 @@ function Rubiks({ modelRef, sides, currentMove, onMoveComplete }) {
     const isAnimating = useRef(false);
     const { scene } = useGLTF(require("../../assets/models/rubiks.glb"));
 
+    const sideMeshes = useRef({top: [], left: [], right: [], front:[], back: [], bottom: []})
+
     useLayoutEffect(() => {
         if (!scene || isColorsApplied.current || !sides.length) return;
 
@@ -119,34 +121,89 @@ function Rubiks({ modelRef, sides, currentMove, onMoveComplete }) {
         applySideColors(back, sides[FACE_ORDER.blue]);
         applySideColors(bottom, sides[FACE_ORDER.yellow]);
 
-        isColorsApplied.current = true; // Mark as done so it never runs again
-        console.log("here?")
+        sideMeshes.current.top = top
+        sideMeshes.current.bottom = bottom
+        sideMeshes.current.front = front
+        sideMeshes.current.left = left
+        sideMeshes.current.right = right
+        sideMeshes.current.back = back
+
+        isColorsApplied.current = true;
     }, [scene, sides]);
 
     useEffect(() => {
         console.log("here!!!!")
         console.log(currentMove)
         if (currentMove !== "" && !isAnimating.current) {
-            handleUMove();
+            handleMove("F");
         }
     }, [currentMove]);
 
+    const handleMove = (move) => {
+        const side = move[0];
+        const isClockwise = move[move.length - 1] === "'";
+
+        const angle = isClockwise ? -Math.PI / 2 : Math.PI / 2;
+
+        const pivot = new THREE.Group();
+        scene.add(pivot);
+
+        const pieces = []
+
+        if (side === 'U') {
+            Object.values(sideMeshes.current).forEach((value) => {
+                value.forEach((sticker) => {
+                    if (getGeometryCenter(sticker).y > 0.5) {
+                        pieces.push(sticker)
+                    }
+                })
+            })
+        } else if (side === 'D') {
+            Object.values(sideMeshes.current).forEach((value) => {
+                value.forEach((sticker) => {
+                    if (getGeometryCenter(sticker).y < -0.5) {
+                        pieces.push(sticker)
+                    }
+                })
+            })
+        } else if (side === 'F') {
+            Object.values(sideMeshes.current).forEach((value) => {
+                value.forEach((sticker) => {
+                    if (getGeometryCenter(sticker).z > 0.5) {
+                        pieces.push(sticker)
+                    }
+                })
+            })
+        }
+
+        pieces.forEach((piece) => {
+            pivot.attach(piece);
+        });
+
+        console.log(pieces.length)
+
+        pivot.rotateY(angle);
+
+        pivot.updateMatrixWorld(true);
+
+        while (pivot.children.length > 0) {
+            scene.attach(pivot.children[0]);
+        }
+
+        scene.remove(pivot);
+
+        onMoveComplete();
+    }
+
     const handleUMove = (isClockwise = true) => {
         const angle = isClockwise ? -Math.PI / 2 : Math.PI / 2;
-        const topY = 2.5; // Based on your code's threshold
 
         const pivot = new THREE.Group();
         scene.add(pivot);
 
         console.log("lakdj")
 
-        const topPieces = [];
-        scene.traverse((child) => {
-            if (child.isMesh) {
-                const pos = getGeometryCenter(child);
-                if (pos.y > 0.5) topPieces.push(child);
-            }
-        });
+        const topPieces = sideMeshes.current.top
 
         topPieces.forEach((piece) => {
             pivot.attach(piece);
@@ -156,7 +213,7 @@ function Rubiks({ modelRef, sides, currentMove, onMoveComplete }) {
         console.log(topPieces.length)
 
         // 3. Perform the rotation
-        pivot.rotateY(angle);
+        pivot.rotateY(-angle);
 
         pivot.updateMatrixWorld(true);
 
