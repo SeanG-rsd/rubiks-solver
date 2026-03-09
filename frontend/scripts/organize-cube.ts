@@ -229,6 +229,8 @@ const isValidOrientation = (cube: string[][]): boolean => {
 
     let countColors = [0, 0, 0, 0, 0, 0];
 
+    let seen: string[] = []
+
     // Check each corner
     for (let i = 0; i < corners.length; i++) {
         const corner = corners[i];
@@ -236,12 +238,21 @@ const isValidOrientation = (cube: string[][]): boolean => {
         const color2 = cube[corner[1][0]][corner[1][1]];
         const color3 = cube[corner[2][0]][corner[2][1]];
 
+        const colors = [color1, color2, color3].sort()
+        const key = colors.join("-");
+
+        if (seen.some(p => p === key)) {
+            return false;
+        }
+
+        seen.push(key);
+
         if (!checkCorner(color1, color2, color3)) {
             return false;
         }
     }
 
-    let seen: string[] = []
+    seen = []
 
     // Check each edge 
     for (let i = 0; i < edges.length; i++) {

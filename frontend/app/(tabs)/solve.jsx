@@ -1,17 +1,18 @@
-import { Canvas } from "@react-three/fiber/native";
+import { useCubeStore } from "@/context/CubeContext";
+import { printCube } from "@/scripts/organize-cube";
+import { cubeToString, solveCube } from "@/scripts/solve-cube";
+import { useIsFocused } from "@react-navigation/native";
 import { OrbitControls } from "@react-three/drei/native";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Canvas } from "@react-three/fiber/native";
+import { useFocusEffect } from "expo-router";
 import {
     Suspense,
     useCallback,
     useRef,
     useState,
 } from "react";
-import { useIsFocused } from "@react-navigation/native";
-import { useCubeStore } from "@/context/CubeContext";
-import { useFocusEffect } from "expo-router";
-import { cubeToString, solveCube } from "@/scripts/solve-cube";
-import RubiksCube from "./../../components/rubiks-cube"
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import RubiksCube from "../../components/rubiks-cube";
 
 
 export default function Solve() {
@@ -42,6 +43,7 @@ export default function Solve() {
     };
 
     const solve = async () => {
+        printCube(detectedSides.value)
         const cube = cubeToString(detectedSides.value);
         const algorithm = await solveCube(cube);
 

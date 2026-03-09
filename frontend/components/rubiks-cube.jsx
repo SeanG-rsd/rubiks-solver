@@ -24,81 +24,9 @@ function applySideColors(sortedMeshes, sideColors) {
 }
 
 export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplete }) {
-    sides = [
-        [
-            "white",
-            "yellow",
-            "blue",
-            "red",
-            "white",
-            "green",
-            "yellow",
-            "green",
-            "green",
-        ],
-        [
-            "green",
-            "yellow",
-            "blue",
-            "blue",
-            "orange",
-            "green",
-            "yellow",
-            "orange",
-            "yellow",
-        ],
-        [
-            "red",
-            "orange",
-            "red",
-            "yellow",
-            "green",
-            "yellow",
-            "green",
-            "green",
-            "white",
-        ],
-        [
-            "white",
-            "red",
-            "white",
-            "blue",
-            "red",
-            "red",
-            "orange",
-            "red",
-            "green",
-        ],
-        [
-            "red",
-            "orange",
-            "orange",
-            "blue",
-            "blue",
-            "orange",
-            "yellow",
-            "blue",
-            "orange",
-        ],
-        [
-            "red",
-            "white",
-            "blue",
-            "white",
-            "yellow",
-            "white",
-            "blue",
-            "white",
-            "orange",
-        ],
-    ];
-
     if (sides.length !== 6) {
         return (
-            <mesh position={[0, 0, 0]}>
-                <boxGeometry args={[2, 2, 2]}></boxGeometry>
-                <meshStandardMaterial color={"red"}></meshStandardMaterial>
-            </mesh>
+            <mesh>...</mesh>
         );
     }
 
