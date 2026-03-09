@@ -1,14 +1,7 @@
 import { useAppState } from "@react-native-community/hooks";
 import { useCameraPermissions } from "expo-camera";
-import { useRef, useState } from "react";
-import {
-    Button,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
-} from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import {
     Camera,
     runAtTargetFps,
@@ -24,11 +17,15 @@ import { PaintStyle, Skia } from "@shopify/react-native-skia";
 import { useSharedValue } from "react-native-worklets-core";
 import { useResizePlugin } from "vision-camera-resize-plugin";
 import {
+    COLOR_TABLE,
     organizeCube,
-    printCube,
     validCubeColors,
 } from "@/scripts/organize-cube";
-import { runOnJS, useAnimatedReaction } from "react-native-reanimated";
+
+const AMBER       = "#C49A00";
+const BG          = "#0D0D0D";
+const BORDER_MED  = "rgba(196,154,0,0.18)";
+const WHITE_MUTED = "rgba(255,255,255,0.30)";
 
 const paint = Skia.Paint();
 paint.setStyle(PaintStyle.Fill);
@@ -48,9 +45,28 @@ export default function ScanScreen() {
 
     const [scannedSides, setScannedSides] = useState<string[][]>([]);
 
+    //const boxStyles = [styles.sideWhite, styles.sideOrange, styles.sideGreen, styles.sideRed, styles.sideBlue, styles.sideYellow];
+
     const frameDimensions = useSharedValue({ width: 0, height: 0 });
-    
+
     const { detectedSides, validCube } = useCubeStore();
+
+    const lastLength = useRef(0);
+
+    const scannedCount = scannedSides.length;
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const current = detectedSides.value;
+            if (current.length !== lastLength.current) {
+                lastLength.current = current.length;
+
+                setScannedSides([...current])
+            }
+        }, 500);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const frameProcessor = useFrameProcessor((frame) => {
         "worklet";
@@ -72,16 +88,12 @@ export default function ScanScreen() {
             const width = frame.width / 4;
 
             const resized = resize(frame, {
-                scale: {
-                    width: width,
-                    height: height,
-                },
+                scale: { width, height },
                 pixelFormat: "rgba",
                 dataType: "uint8",
             });
 
             const channels = 4;
-
             const x = width / 2;
             const y = height / 2;
             const d = 20;
@@ -92,27 +104,19 @@ export default function ScanScreen() {
                 for (let j = -1; j <= 1; j++) {
                     const newX = x + (j * d);
                     const newY = y + (i * d);
-
                     const index = (newY * width + newX) * channels;
 
-                    const red = resized[index];
+                    const red   = resized[index];
                     const green = resized[index + 1];
-                    const blue = resized[index + 2];
-                    const alpha = resized[index + 3];
+                    const blue  = resized[index + 2];
 
                     for (const range of Object.values(cubeRanges)) {
-                        const min = range.min;
-                        const max = range.max;
-
+                        const { min, max } = range;
                         if (
-                            red >= min.red && red <= max.red &&
-                            green >= min.green &&
-                            green <= max.green && blue >= min.blue &&
-                            blue <= max.blue
+                            red   >= min.red   && red   <= max.red   &&
+                            green >= min.green && green <= max.green &&
+                            blue  >= min.blue  && blue  <= max.blue
                         ) {
-                            // console.log(
-                            //     `The pixel at ${j},${i} is ${range.color}!`,
-                            // );
                             colors.push(range.color);
                         }
                     }
@@ -121,33 +125,23 @@ export default function ScanScreen() {
 
             if (colors.length === 9 && detectedSides.value.length < 6) {
                 let valid = true;
-                //console.log(sides.value.length)
                 for (const side of Object.values(detectedSides.value)) {
-                    //console.log(`${side[4] == colors[4]}: ${side[4]} === ${colors[4]}`)
                     if (side[4] === colors[4]) valid = false;
                 }
-
                 if (valid) {
                     detectedSides.value = [...detectedSides.value, colors];
-                    console.log(colors);
-                    console.log(detectedSides.value.length);
                     console.log(`Found Valid!: ${detectedSides.value.length}`);
                 }
             }
 
             if (detectedSides.value.length === 6 && !validCube.value) {
                 let valid = validCubeColors(detectedSides.value);
-
                 if (!valid) {
                     detectedSides.value = [];
                 } else {
                     detectedSides.value = organizeCube(detectedSides.value);
-
-                    console.log(detectedSides.value);
-
                     validCube.value = true;
                 }
-
                 console.log("------FINISH CHECK------");
             }
         });
@@ -158,13 +152,9 @@ export default function ScanScreen() {
         validCube.value = false;
     };
 
-    if (!permission) {
-        // Camera permissions are still loading.
-        return <View />;
-    }
+    if (!permission) return <View />;
 
     if (!permission.granted) {
-        // Camera permissions are not granted yet.
         return (
             <View style={styles.container}>
                 <Text style={styles.message}>
@@ -188,134 +178,196 @@ export default function ScanScreen() {
                 pixelFormat="rgb"
             />
 
-            <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                    style={styles.button}
-                    onPress={resetSides}
-                >
-                    <Text style={styles.text}>Reset Scan</Text>
-                </TouchableOpacity>
+            <View style={styles.box}>
+                <View style={[styles.corner, styles.cornerTL]} />
+                <View style={[styles.corner, styles.cornerTR]} />
+                <View style={[styles.corner, styles.cornerBL]} />
+                <View style={[styles.corner, styles.cornerBR]} />
             </View>
 
-            <View style={styles.box}></View>
-
-            <View style={styles.sidesContainer}>
-                {Array.from({ length: 6 }).map((_, i) => {
-                    const side = scannedSides[i];
-                    return (
+            <View style={styles.hudTop}>
+                <Text style={styles.hudLabel}>SCANNING</Text>
+                <View style={styles.progressRow}>
+                    {Array.from({ length: 6 }).map((_, i) => (
                         <View
                             key={i}
                             style={[
-                                styles.sideIndicator,
+                                styles.progressDot,
                                 {
-                                    backgroundColor: side
-                                        ? side[4]
-                                        : "transparent",
+                                    backgroundColor: i < scannedCount
+                                        ? scannedSides[i][4]
+                                        : "rgba(196,154,0,0.20)",
                                 },
                             ]}
-                        >
-                            {!side && (
-                                <Text style={styles.sideText}>{i + 1}</Text>
-                            )}
-                        </View>
-                    );
-                })}
+                        />
+                    ))}
+                </View>
+                <Text style={styles.hudSub}>{scannedCount} / 6 sides</Text>
+            </View>
+
+            <View style={styles.bottomBar}>
+                <TouchableOpacity style={styles.resetButton} onPress={resetSides}>
+                    <Text style={styles.resetButtonText}>Reset Scan</Text>
+                </TouchableOpacity>
             </View>
         </View>
     );
 }
 
+const CORNER_SIZE  = 22;
+const CORNER_WIDTH = 3;
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: "center",
-    },
-    box: {
-        position: "absolute",
-        top: "32.5%",
-        left: "15%",
-        backgroundColor: "transparent",
-        width: 250,
-        aspectRatio: "1/1",
-        borderColor: "white",
-        borderWidth: 10,
-        borderRadius: 15,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    sidesContainer: {
-        position: "absolute",
-        top: 16,
-        right: 16,
-        gap: 8,
-    },
-    sideIndicator: {
-        width: 36,
-        height: 36,
-        borderRadius: 6,
-        borderWidth: 2,
-        borderColor: "white",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    sideText: {
-        color: "white",
-        fontWeight: "bold",
-    },
-    boxH: {
-        position: "absolute",
-        top: "50%",
-        left: "45%",
-        width: "10%",
-        height: 2,
-        backgroundColor: "red",
-    },
-    boxV: {
-        position: "absolute",
-        top: "50%",
-        left: "45%",
-        width: "10%",
-        height: 2,
-        transform: "rotate(90deg)",
-        backgroundColor: "red",
-    },
-    message: {
-        textAlign: "center",
-        paddingBottom: 10,
+        backgroundColor: BG,
     },
     camera: {
         flex: 1,
     },
-    buttonContainer: {
+
+    box: {
         position: "absolute",
-        bottom: 64,
-        flexDirection: "row",
-        backgroundColor: "transparent",
-        width: "100%",
-        paddingHorizontal: 64,
+        top: "32.5%",
+        left: "15%",
+        width: 250,
+        aspectRatio: "1/1",
+        borderRadius: 12,
     },
-    takePictureContainer: {
+    corner: {
         position: "absolute",
-        bottom: 128,
+        width: CORNER_SIZE,
+        height: CORNER_SIZE,
+        borderColor: AMBER,
+        borderRadius: 3,
+    },
+    cornerTL: {
+        top: 0,
+        left: 0,
+        borderTopWidth: CORNER_WIDTH,
+        borderLeftWidth: CORNER_WIDTH,
+    },
+    cornerTR: {
+        top: 0,
+        right: 0,
+        borderTopWidth: CORNER_WIDTH,
+        borderRightWidth: CORNER_WIDTH,
+    },
+    cornerBL: {
+        bottom: 0,
+        left: 0,
+        borderBottomWidth: CORNER_WIDTH,
+        borderLeftWidth: CORNER_WIDTH,
+    },
+    cornerBR: {
+        bottom: 0,
+        right: 0,
+        borderBottomWidth: CORNER_WIDTH,
+        borderRightWidth: CORNER_WIDTH,
+    },
+
+    hudTop: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        paddingTop: 60,
+        paddingBottom: 18,
+        paddingHorizontal: 28,
+        backgroundColor: "rgba(13,13,13,0.75)",
+        borderBottomWidth: 1,
+        borderBottomColor: BORDER_MED,
+        alignItems: "center",
+    },
+    hudLabel: {
+        color: AMBER,
+        fontSize: 11,
+        fontWeight: "700",
+        letterSpacing: 4,
+        marginBottom: 10,
+    },
+    progressRow: {
         flexDirection: "row",
+        gap: 8,
+        marginBottom: 6,
+    },
+    progressDot: {
+        width: 28,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: "rgba(196,154,0,0.20)",
+    },
+    progressDotFilled: {
+        backgroundColor: AMBER,
+    },
+    hudSub: {
+        color: WHITE_MUTED,
+        fontSize: 12,
+        fontWeight: "600",
+        letterSpacing: 1,
+    },
+
+    sidesContainer: {
+        position: "absolute",
+        top: 0,
+        right: "40%",
+        width: 100,
+        height: 50,
+        alignItems: "center",
+    },
+    sideGreen:  { position: "absolute", top: 90,  right: 30  },
+    sideBlue:   { position: "absolute", top: 90,  right: -60 },
+    sideRed:    { position: "absolute", top: 90,  right: -15 },
+    sideOrange: { position: "absolute", top: 90,  right: 75  },
+    sideYellow: { position: "absolute", top: 135, right: 30  },
+    sideWhite:  { position: "absolute", top: 45,  right: 30  },
+    sideIndicator: {
+        width: 40,
+        height: 40,
+        borderRadius: 7,
+        borderWidth: 1.5,
+        alignItems: "center",
         justifyContent: "center",
+    },
+    sideText: {
+        color: AMBER,
+        fontWeight: "700",
+        fontSize: 13,
+    },
+
+    bottomBar: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingBottom: 44,
+        paddingTop: 20,
+        paddingHorizontal: 32,
+        backgroundColor: "rgba(13,13,13,0.85)",
+        borderTopWidth: 1,
+        borderTopColor: BORDER_MED,
         alignItems: "center",
-        backgroundColor: "transparent",
+    },
+    resetButton: {
         width: "100%",
-    },
-    button: {
-        flex: 1,
+        height: 52,
+        borderRadius: 14,
+        backgroundColor: "rgba(255,255,255,0.06)",
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.12)",
         alignItems: "center",
+        justifyContent: "center",
     },
-    text: {
-        fontSize: 24,
-        fontWeight: "bold",
+    resetButtonText: {
+        color: WHITE_MUTED,
+        fontSize: 16,
+        fontWeight: "700",
+        letterSpacing: 1,
+    },
+
+    message: {
+        textAlign: "center",
+        paddingBottom: 10,
         color: "white",
-    },
-    takePictureButton: {
-        width: 64,
-        height: 64,
-        backgroundColor: "#0000ff",
-        borderRadius: 32,
     },
 });

@@ -50,10 +50,10 @@ const conversionTable: { [key: string]: string } = {
 
 const reorder = [0, 3, 2, 5, 1, 4];
 
-export const solveCube = async (cube: string) => {
+export const solveCube = async (cube: string) : Promise<string> => {
     console.log(cube)
     try {
-        const response = await fetch("http://10.8.146.230:8000/solve", {
+        const response = await fetch("http://10.8.146.239:8000/solve", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -65,7 +65,7 @@ export const solveCube = async (cube: string) => {
 
         return data.solution;
     } catch (e) {
-        return e;
+        return "Error";
     }
 };
 
