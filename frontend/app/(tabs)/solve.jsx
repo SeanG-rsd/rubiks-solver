@@ -1,15 +1,10 @@
-import { useCubeStore } from "@/context/CubeContext";
-import { printCube } from "@/scripts/organize-cube";
-import { cubeToString, solveCube } from "@/scripts/solve-cube";
 import { useIsFocused } from "@react-navigation/native";
 import { OrbitControls } from "@react-three/drei/native";
 import { Canvas } from "@react-three/fiber/native";
-import { useFocusEffect } from "expo-router";
 import {
     Suspense,
-    useCallback,
     useRef,
-    useState,
+    useState
 } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import RubiksCube from "../../components/rubiks-cube";
@@ -25,70 +20,67 @@ export default function Solve() {
 
     const isFocused = useIsFocused();
 
-    const { detectedSides, validCube } = useCubeStore();
+    const validCube = true;
+    const detectedSides = [
+    ["white", "yellow", "blue", "red", "white", "green", "yellow", "green", "green"],
+    ["green", "yellow", "blue", "blue", "orange", "green", "yellow", "orange", "yellow"],
+    ["red", "orange", "red", "yellow", "green", "yellow", "green", "green", "white"],
+    ["white", "red", "white", "blue", "red", "red", "orange", "red", "green"],
+    ["red", "orange", "orange", "blue", "blue", "orange", "yellow", "blue", "orange"],
+    ["red", "white", "blue", "white", "yellow", "white", "blue", "white", "orange"]
+]
 
     const [currentSides, setCurrentSides] = useState([]);
 
     const [nextMove, setNextMove] = useState("");
 
-    const [moveState, setMoveState] = useState(false);
-
-    const startNextMove = () => {
-        const move = moves[0];
-
-        setMoves(moves.slice(1))
-
-        setNextMove(move)
-
-        setMoveState(false)
-    }
-
-    const doMove = () => {
-        setMoveState(true)
+    const animateMove = () => {
+        console.log("Animating move: R");
+        setNextMove("R"); // This will trigger the animation
     }
 
     const goBack = () => {
 
     }
 
-    useFocusEffect(
-        useCallback(() => {
-            let isActive = true; 
+    // useFocusEffect(
+    //     useCallback(() => {
+    //         let isActive = true; 
 
-            const solve = async () => {
-                printCube(detectedSides.value);
-                const cube = cubeToString(detectedSides.value);
+    //         const solve = async () => {
+    //             printCube(detectedSides);
+    //             const cube = cubeToString(detectedSides);
                 
-                try {
-                    const algorithm = await solveCube(cube);
+    //             try {
+    //                 const algorithm = await solveCube(cube);
 
-                    if (!algorithm || algorithm.startsWith("Error")) {
-                        console.log("Could not solve:", algorithm);
-                        return;
-                    }
+    //                 if (!algorithm || algorithm.startsWith("Error")) {
+    //                     console.log("Could not solve:", algorithm);
+    //                     return;
+    //                 }
 
-                    if (isActive) {
-                        const moves = algorithm.split(' ');
-                        setNextMove(moves[0])
-                        console.log(moves)
-                        setMoves(moves.splice(1));
-                    }
-                } catch (e) {
-                    console.error("Failed to process cube", e);
-                }
-            };
+    //                 if (isActive) {
+    //                     const moves = algorithm.split(' ');
+    //                     setNextMove(moves[0])
+    //                     console.log(moves)
+    //                     setMoves(moves.splice(1));
+    //                 }
+    //             } catch (e) {
+    //                 console.error("Failed to process cube", e);
+    //             }
+    //         };
 
-            if (validCube.value) {
-                setCurrentSides(detectedSides.value);
-                solve();
-            } else {
-                setCurrentSides([]);
-            }
-            return () => {
-                isActive = false; 
-            };
-        }, [])
-    );
+    //         if (validCube) {
+    //             setCurrentSides(detectedSides);
+    //             solve();
+    //         } else {
+    //             setCurrentSides([]);
+    //         }
+    //         return () => {
+    //             isActive = false; 
+    //         };
+    //     }, [])
+    // );
 
     return (
         <View style={styles.container} key={isFocused}>
@@ -109,9 +101,12 @@ export default function Solve() {
                 <Suspense fallback={null}>
                     <RubiksCube
                         modelRef={modelRef}
-                        sides={currentSides}
+                        sides={detectedSides}
                         currentMove={nextMove}
-                        onMoveComplete={() => {}}
+                        onMoveComplete={() => {
+                            console.log("Move completed, resetting");
+                            setNextMove("");
+                        }}
                     >
                     </RubiksCube>
                     <OrbitControls
@@ -131,21 +126,15 @@ export default function Solve() {
 
                 <View style={styles.buttonContainer}>
                     <TouchableOpacity style={[styles.button, styles.buttonSecondary]} onPress={() => goBack()}>
-                        <Text style={styles.buttonTextSecondary}>{moveState ? "Redo" : "← Prev"}</Text>
+                        <Text style={styles.buttonTextSecondary}>← Reset</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         style={[styles.button, styles.buttonPrimary]}
-                        onPress={() => {
-                            if (moveState) {
-                                startNextMove()
-                            } else {
-                                doMove()
-                            }
-                        }}
+                        onPress={animateMove}
                     >
                         <Text style={styles.buttonTextPrimary}>
-                            {moveState ? "Next →" : "Animate"}
+                            Animate
                         </Text>
                     </TouchableOpacity>
                 </View>

@@ -1,10 +1,10 @@
+import { FACE_ORDER } from "@/scripts/organize-cube";
 import { useGLTF } from "@react-three/drei/native";
 import {
     useEffect,
     useLayoutEffect,
     useRef,
 } from "react";
-import { FACE_ORDER } from "@/scripts/organize-cube";
 
 import * as THREE from "three";
 
@@ -135,14 +135,22 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
     }, [scene, sides]);
 
     useEffect(() => {
-        if (currentMove !== "" && !isAnimating.current) {
+        if (currentMove !== "" && !isAnimating.current && isColorsApplied.current) {
             console.log("handle move");
+            isAnimating.current = true;
             handleMove("R");
         }
-    }, [currentMove]);
+    }, [currentMove, isColorsApplied.current]);
 
     const handleMove = (move) => {
-        console.log("handle");
+        console.log("handle move starting");
+        
+        if (!scene) {
+            console.log("Scene not loaded yet");
+            isAnimating.current = false;
+            return;
+        }
+
         const side = move[0];
         const isClockwise = move[move.length - 1] === "'";
 
@@ -203,6 +211,8 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
             });
         }
 
+        console.log("Pieces to rotate:", pieces.length);
+
         pieces.forEach((piece) => {
             pivot.attach(piece);
         });
@@ -215,8 +225,6 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
             pivot.rotateX(angle);
         }
 
-        console.log(pieces.length);
-
         pivot.updateMatrixWorld(true);
 
         while (pivot.children.length > 0) {
@@ -225,9 +233,10 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
 
         scene.remove(pivot);
 
+        isAnimating.current = false;
         onMoveComplete();
 
-        console.log("done");
+        console.log("Animation complete");
     };
 
     return <primitive object={scene} scale={0.3} />;

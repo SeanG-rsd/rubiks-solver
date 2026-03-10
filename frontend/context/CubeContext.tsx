@@ -1,18 +1,39 @@
-import React, { createContext, useContext, useMemo } from 'react';
-import { useSharedValue, ISharedValue } from 'react-native-worklets-core';
+import React, { createContext, useContext, useMemo, useState } from 'react';
+
+type SharedValue<T> = {
+  value: T;
+};
 
 type CubeContextType = {
-  detectedSides: ISharedValue<string[][]>; 
-  validCube: ISharedValue<boolean>;
+  detectedSides: SharedValue<string[][]>; 
+  validCube: SharedValue<boolean>;
 };
 
 const CubeContext = createContext<CubeContextType | undefined>(undefined);
 
 export const CubeProvider = ({ children }: { children: React.ReactNode }) => {
+  const [detectedSidesState, setDetectedSidesState] = useState<string[][]>([]);
+  const [validCubeState, setValidCubeState] = useState(false);
+
+  const detectedSides: SharedValue<string[][]> = {
+    get value() {
+      return detectedSidesState;
+    },
+    set value(newValue: string[][]) {
+      setDetectedSidesState(newValue);
+    },
+  };
+
+  const validCube: SharedValue<boolean> = {
+    get value() {
+      return validCubeState;
+    },
+    set value(newValue: boolean) {
+      setValidCubeState(newValue);
+    },
+  };
+
   const value = useMemo(() => {
-    const detectedSides = useSharedValue<string[][]>([]);
-    const validCube = useSharedValue(false);
-    
     return { detectedSides, validCube };
   }, []);
 
