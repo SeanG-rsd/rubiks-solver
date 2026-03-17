@@ -57,7 +57,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
             }
         });
 
-        allMeshes.forEach((m) => console.log(m.name, getGeometryCenter(m)));
+        //allMeshes.forEach((m) => console.log(m.name, getGeometryCenter(m)));
 
         const threshold = 0.8; // tune to your model's scale
 
@@ -122,7 +122,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
         applySideColors(back, sides[FACE_ORDER.blue]);
         applySideColors(bottom, sides[FACE_ORDER.yellow]);
 
-        console.log(top.length);
+        //console.log(top.length);
 
         sideMeshes.current.top = top;
         sideMeshes.current.bottom = bottom;
@@ -136,9 +136,10 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
 
     useEffect(() => {
         if (currentMove !== "" && !isAnimating.current && isColorsApplied.current) {
-            console.log("handle move");
+            console.log(`handle move: ${currentMove}`);
             isAnimating.current = true;
-            handleMove("R");
+
+            handleMove(currentMove)
         }
     }, [currentMove, isColorsApplied.current]);
 
@@ -150,11 +151,21 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
             isAnimating.current = false;
             return;
         }
-
+        
         const side = move[0];
-        const isClockwise = move[move.length - 1] === "'";
+        const lastChar = move[move.length - 1];
+        let angle;
 
-        const angle = isClockwise ? -Math.PI / 2 : Math.PI / 2;
+        if (lastChar === "'") {
+            // Prime move - counter-clockwise
+            angle = Math.PI / 2;
+        } else if (lastChar === "2") {
+            // Double move - 180 degrees
+            angle = Math.PI;
+        } else {
+            // Normal move - clockwise
+            angle = -Math.PI / 2;
+        }
 
         const pivot = new THREE.Group();
         scene.add(pivot);
@@ -177,6 +188,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
                     }
                 });
             });
+            angle = -angle
         } else if (side === "F") {
             Object.values(sideMeshes.current).forEach((value) => {
                 value.forEach((sticker) => {
@@ -193,6 +205,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
                     }
                 });
             });
+            angle = -angle
         } else if (side === "L") {
             Object.values(sideMeshes.current).forEach((value) => {
                 value.forEach((sticker) => {
@@ -200,7 +213,8 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
                         pieces.push(sticker);
                     }
                 });
-            });   
+            });  
+            angle = -angle; 
         } else if (side === "R") {
             Object.values(sideMeshes.current).forEach((value) => {
                 value.forEach((sticker) => {
@@ -220,7 +234,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
         if (side === "U" || side === "D") {
             pivot.rotateY(angle);
         } else if (side === "F" || side === "B") {
-            pivot.rotateZ(-angle);
+            pivot.rotateZ(angle);
         } else if (side === "L" || side === "R") {
             pivot.rotateX(angle);
         }

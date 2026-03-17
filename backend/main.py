@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+print(kociemba.solve('UDBRUFDFFURUBRRLRFRLRDFDFFURUBUDUBULFDBBLFDLDRLLBBLDBL'))
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

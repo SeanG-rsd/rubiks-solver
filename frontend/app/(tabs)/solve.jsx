@@ -3,11 +3,13 @@ import { OrbitControls } from "@react-three/drei/native";
 import { Canvas } from "@react-three/fiber/native";
 import {
     Suspense,
+    useEffect,
     useRef,
     useState
 } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import RubiksCube from "../../components/rubiks-cube";
+import { cubeToString } from "@/scripts/solve-cube";
 
 
 export default function Solve() {
@@ -16,7 +18,7 @@ export default function Solve() {
 
     const [resetKey, setResetKey] = useState(0);
 
-    const [moves, setMoves] = useState([])
+    const [moves, setMoves] = useState(["B", "B'", "B2"])
 
     const isFocused = useIsFocused();
 
@@ -28,15 +30,39 @@ export default function Solve() {
     ["white", "red", "white", "blue", "red", "red", "orange", "red", "green"],
     ["red", "orange", "orange", "blue", "blue", "orange", "yellow", "blue", "orange"],
     ["red", "white", "blue", "white", "yellow", "white", "blue", "white", "orange"]
-]
+    ]
 
     const [currentSides, setCurrentSides] = useState([]);
 
     const [nextMove, setNextMove] = useState("");
 
+    const [currentMove, setCurrentMove] = useState("");
+
+    useEffect(() => {
+        const algo = ("R' D' F2 B2 D R D B' L' B L' B2 U D2 F2 D L2 F2 D' R2 L2").split(' ')
+
+
+        if (moves.length > 0) {
+            setNextMove(algo[0])
+            setMoves(algo.splice(1))
+        }
+    }, [])
+
     const animateMove = () => {
-        console.log("Animating move: R");
-        setNextMove("R"); // This will trigger the animation
+        console.log("animate")
+        if (nextMove !== "") {
+            console.log(`Animating Move: ${nextMove}`)
+
+            setCurrentMove(nextMove);
+            
+            if (moves.length > 0) {
+                setNextMove(moves[0])
+                setMoves(moves.splice(1))
+            } else {
+                setNextMove("Solved")
+            }
+        }
+        
     }
 
     const goBack = () => {
@@ -102,10 +128,9 @@ export default function Solve() {
                     <RubiksCube
                         modelRef={modelRef}
                         sides={detectedSides}
-                        currentMove={nextMove}
+                        currentMove={currentMove}
                         onMoveComplete={() => {
                             console.log("Move completed, resetting");
-                            setNextMove("");
                         }}
                     >
                     </RubiksCube>
