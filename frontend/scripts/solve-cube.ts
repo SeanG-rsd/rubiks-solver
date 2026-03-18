@@ -53,7 +53,7 @@ const reorder = [0, 3, 2, 5, 1, 4];
 export const solveCube = async (cube: string) : Promise<string> => {
     console.log(cube)
     try {
-        const response = await fetch("http://10.8.146.239:8000/solve", {
+        const response = await fetch("http://10.8.146.216:8000/solve", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

@@ -57,7 +57,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
             }
         });
 
-        allMeshes.forEach((m) => console.log(m.name, getGeometryCenter(m)));
+        //allMeshes.forEach((m) => console.log(m.name, getGeometryCenter(m)));
 
         const threshold = 0.8; // tune to your model's scale
 
@@ -122,7 +122,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
         applySideColors(back, sides[FACE_ORDER.blue]);
         applySideColors(bottom, sides[FACE_ORDER.yellow]);
 
-        console.log(top.length);
+        //console.log(top.length);
 
         sideMeshes.current.top = top;
         sideMeshes.current.bottom = bottom;
@@ -135,18 +135,37 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
     }, [scene, sides]);
 
     useEffect(() => {
-        if (currentMove !== "" && !isAnimating.current) {
-            console.log("handle move");
-            handleMove("R");
+        if (currentMove !== "" && !isAnimating.current && isColorsApplied.current) {
+            console.log(`handle move: ${currentMove}`);
+            isAnimating.current = true;
+
+            handleMove(currentMove)
         }
-    }, [currentMove]);
+    }, [currentMove, isColorsApplied.current]);
 
     const handleMove = (move) => {
-        console.log("handle");
+        console.log("handle move starting");
+        
+        if (!scene) {
+            console.log("Scene not loaded yet");
+            isAnimating.current = false;
+            return;
+        }
+        
         const side = move[0];
-        const isClockwise = move[move.length - 1] === "'";
+        const lastChar = move[move.length - 1];
+        let angle;
 
-        const angle = isClockwise ? -Math.PI / 2 : Math.PI / 2;
+        if (lastChar === "'") {
+            // Prime move - counter-clockwise
+            angle = Math.PI / 2;
+        } else if (lastChar === "2") {
+            // Double move - 180 degrees
+            angle = Math.PI;
+        } else {
+            // Normal move - clockwise
+            angle = -Math.PI / 2;
+        }
 
         const pivot = new THREE.Group();
         scene.add(pivot);
@@ -169,6 +188,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
                     }
                 });
             });
+            angle = -angle
         } else if (side === "F") {
             Object.values(sideMeshes.current).forEach((value) => {
                 value.forEach((sticker) => {
@@ -185,6 +205,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
                     }
                 });
             });
+            angle = -angle
         } else if (side === "L") {
             Object.values(sideMeshes.current).forEach((value) => {
                 value.forEach((sticker) => {
@@ -192,7 +213,8 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
                         pieces.push(sticker);
                     }
                 });
-            });   
+            });  
+            angle = -angle; 
         } else if (side === "R") {
             Object.values(sideMeshes.current).forEach((value) => {
                 value.forEach((sticker) => {
@@ -203,31 +225,52 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
             });
         }
 
+        console.log("Pieces to rotate:", pieces.length);
+
         pieces.forEach((piece) => {
             pivot.attach(piece);
         });
 
-        if (side === "U" || side === "D") {
-            pivot.rotateY(angle);
-        } else if (side === "F" || side === "B") {
-            pivot.rotateZ(-angle);
-        } else if (side === "L" || side === "R") {
-            pivot.rotateX(angle);
-        }
+        // Animation parameters
+        const animationDuration = 0.4; // seconds
+        const startTime = Date.now();
+        const rotationAxis = side === "U" || side === "D" ? "Y" : side === "F" || side === "B" ? "Z" : "X";
 
-        console.log(pieces.length);
+        const animateRotation = () => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const progress = Math.min(elapsed / animationDuration, 1);
 
-        pivot.updateMatrixWorld(true);
+            // Reset rotation and apply new one
+            pivot.rotation.set(0, 0, 0);
 
-        while (pivot.children.length > 0) {
-            scene.attach(pivot.children[0]);
-        }
+            const rotatedAngle = angle * progress;
 
-        scene.remove(pivot);
+            if (rotationAxis === "Y") {
+                pivot.rotateY(rotatedAngle);
+            } else if (rotationAxis === "Z") {
+                pivot.rotateZ(rotatedAngle);
+            } else if (rotationAxis === "X") {
+                pivot.rotateX(rotatedAngle);
+            }
 
-        onMoveComplete();
+            pivot.updateMatrixWorld(true);
 
-        console.log("done");
+            if (progress < 1) {
+                requestAnimationFrame(animateRotation);
+            } else {
+                // Animation complete, detach pieces
+                while (pivot.children.length > 0) {
+                    scene.attach(pivot.children[0]);
+                }
+
+                scene.remove(pivot);
+                isAnimating.current = false;
+                onMoveComplete();
+                console.log("Animation complete");
+            }
+        };
+
+        requestAnimationFrame(animateRotation);
     };
 
     return <primitive object={scene} scale={0.3} />;

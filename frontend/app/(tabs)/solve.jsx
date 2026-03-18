@@ -31,24 +31,21 @@ export default function Solve() {
 
     const [nextMove, setNextMove] = useState("");
 
-    const [moveState, setMoveState] = useState(false);
+    const [currentMove, setCurrentMove] = useState("");
 
     const startNextMove = () => {
-        const move = moves[0];
+        if (nextMove !== "") {
+            console.log(`Animating Move: ${nextMove}`)
 
-        setMoves(moves.slice(1))
-
-        setNextMove(move)
-
-        setMoveState(false)
-    }
-
-    const doMove = () => {
-        setMoveState(true)
-    }
-
-    const goBack = () => {
-
+            setCurrentMove(nextMove);
+            
+            if (moves.length > 0) {
+                setNextMove(moves[0])
+                setMoves(moves.splice(1))
+            } else {
+                setNextMove("Solved")
+            }
+        }
     }
 
     useFocusEffect(
@@ -110,7 +107,7 @@ export default function Solve() {
                     <RubiksCube
                         modelRef={modelRef}
                         sides={currentSides}
-                        currentMove={nextMove}
+                        currentMove={currentMove}
                         onMoveComplete={() => {}}
                     >
                     </RubiksCube>
@@ -131,21 +128,17 @@ export default function Solve() {
 
                 <View style={styles.buttonContainer}>
                     <TouchableOpacity style={[styles.button, styles.buttonSecondary]} onPress={() => goBack()}>
-                        <Text style={styles.buttonTextSecondary}>{moveState ? "Redo" : "← Prev"}</Text>
+                        <Text style={styles.buttonTextSecondary}>{"← Prev"}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         style={[styles.button, styles.buttonPrimary]}
                         onPress={() => {
-                            if (moveState) {
-                                startNextMove()
-                            } else {
-                                doMove()
-                            }
+                            startNextMove()
                         }}
                     >
                         <Text style={styles.buttonTextPrimary}>
-                            {moveState ? "Next →" : "Animate"}
+                            {"Next →"}
                         </Text>
                     </TouchableOpacity>
                 </View>
