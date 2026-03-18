@@ -231,26 +231,46 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
             pivot.attach(piece);
         });
 
-        if (side === "U" || side === "D") {
-            pivot.rotateY(angle);
-        } else if (side === "F" || side === "B") {
-            pivot.rotateZ(angle);
-        } else if (side === "L" || side === "R") {
-            pivot.rotateX(angle);
-        }
+        // Animation parameters
+        const animationDuration = 0.4; // seconds
+        const startTime = Date.now();
+        const rotationAxis = side === "U" || side === "D" ? "Y" : side === "F" || side === "B" ? "Z" : "X";
 
-        pivot.updateMatrixWorld(true);
+        const animateRotation = () => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const progress = Math.min(elapsed / animationDuration, 1);
 
-        while (pivot.children.length > 0) {
-            scene.attach(pivot.children[0]);
-        }
+            // Reset rotation and apply new one
+            pivot.rotation.set(0, 0, 0);
 
-        scene.remove(pivot);
+            const rotatedAngle = angle * progress;
 
-        isAnimating.current = false;
-        onMoveComplete();
+            if (rotationAxis === "Y") {
+                pivot.rotateY(rotatedAngle);
+            } else if (rotationAxis === "Z") {
+                pivot.rotateZ(rotatedAngle);
+            } else if (rotationAxis === "X") {
+                pivot.rotateX(rotatedAngle);
+            }
 
-        console.log("Animation complete");
+            pivot.updateMatrixWorld(true);
+
+            if (progress < 1) {
+                requestAnimationFrame(animateRotation);
+            } else {
+                // Animation complete, detach pieces
+                while (pivot.children.length > 0) {
+                    scene.attach(pivot.children[0]);
+                }
+
+                scene.remove(pivot);
+                isAnimating.current = false;
+                onMoveComplete();
+                console.log("Animation complete");
+            }
+        };
+
+        requestAnimationFrame(animateRotation);
     };
 
     return <primitive object={scene} scale={0.3} />;
