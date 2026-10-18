@@ -9,7 +9,7 @@ import {
     useFrameProcessor,
 } from "react-native-vision-camera";
 
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "expo-router/react-navigation";
 
 import { cubeRanges } from "@/constants/variables";
 import { useCubeStore } from "@/context/CubeContext";

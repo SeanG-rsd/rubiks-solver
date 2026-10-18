@@ -1,7 +1,7 @@
 import { useCubeStore } from "@/context/CubeContext";
 import { printCube } from "@/scripts/organize-cube";
 import { cubeToString, solveCube } from "@/scripts/solve-cube";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "expo-router/react-navigation";
 import { OrbitControls } from "@react-three/drei/native";
 import { Canvas } from "@react-three/fiber/native";
 import { useFocusEffect } from "expo-router";
