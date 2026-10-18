@@ -1,0 +1,3 @@
+[submodule "cpp/rubiks-algorithm"]
+	path = cpp/rubiks-algorithm
+	url = https://github.com/SeanG-rsd/rubiks-algorithm.git
