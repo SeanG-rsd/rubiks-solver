@@ -37,6 +37,7 @@ FFLFULRFBDFDURULDRFURLFBFBULDBDDRLRBRDULLBBLUFRDRBUUBD
  *
  */
 
+import NativeCubeSolver from "@/specs/NativeCubeSolver";
 import { COLOR_TABLE } from "./organize-cube";
 
 const conversionTable: { [key: string]: string } = {
@@ -50,23 +51,11 @@ const conversionTable: { [key: string]: string } = {
 
 const reorder = [0, 3, 2, 5, 1, 4];
 
-export const solveCube = async (cube: string) : Promise<string> => {
+// resolves with the moves separated by spaces, or "" if the cube is already solved.
+// rejects with the reason if the scanned colors aren't a solvable cube
+export const solveCube = (cube: string) : Promise<string> => {
     console.log(cube)
-    try {
-        const response = await fetch("http://10.8.146.216:8000/solve", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ "cube": cube }),
-        });
-
-        const data = await response.json();
-
-        return data.solution;
-    } catch (e) {
-        return "Error";
-    }
+    return NativeCubeSolver.solve(cube);
 };
 
 export const cubeToString = (cube: string[][]) => {

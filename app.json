@@ -67,7 +67,8 @@
       "expo-font",
       "expo-web-browser",
       "expo-image",
-      "expo-status-bar"
+      "expo-status-bar",
+      "./plugins/with-cube-solver"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -27,12 +27,7 @@ export default function Solve() {
 
   const [currentMove, setCurrentMove] = useState("");
 
-  //const [value, setValue] = useState("value");
-
   const startNextMove = () => {
-    //const revString = SampleTurboModule.reverseString(value);
-    //setValue(revString);
-
     if (nextMove !== "") {
       console.log(`Animating Move: ${nextMove}`);
 
@@ -58,19 +53,20 @@ export default function Solve() {
         try {
           const algorithm = await solveCube(cube);
 
-          if (!algorithm || algorithm.startsWith("Error")) {
-            console.log("Could not solve:", algorithm);
-            return;
-          }
-
           if (isActive) {
+            if (algorithm === "") {
+              setNextMove("Solved");
+              setMoves([]);
+              return;
+            }
+
             const moves = algorithm.split(" ");
             setNextMove(moves[0]);
             console.log(moves);
             setMoves(moves.splice(1));
           }
         } catch (e) {
-          console.error("Failed to process cube", e);
+          console.log("Could not solve:", e.message);
         }
       };
 
