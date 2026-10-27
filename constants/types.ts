@@ -12,10 +12,11 @@ export type Color = {
     alpha: number;
 }
 
-export type Range = {
+export type ReferenceColor = {
     color: string;
-    min: Color;
-    max: Color;
+    red: number;
+    green: number;
+    blue: number;
 }
 
 export type Cube = {

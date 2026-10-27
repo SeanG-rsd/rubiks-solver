@@ -1,7 +1,14 @@
 import { useAppState } from "@react-native-community/hooks";
 import { useCameraPermissions } from "expo-camera";
 import { useEffect, useRef, useState } from "react";
-import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+    Button,
+    LayoutChangeEvent,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import {
     Camera,
     runAtTargetFps,
@@ -11,7 +18,12 @@ import {
 
 import { useIsFocused } from "expo-router/react-navigation";
 
-import { cubeRanges } from "@/constants/variables";
+import {
+    cubeColors,
+    MAX_COLOR_DISTANCE,
+    SAMPLE_FRACTION,
+    SCAN_BOX_SIZE,
+} from "@/constants/variables";
 import { useCubeStore } from "@/context/CubeContext";
 import { PaintStyle, Skia } from "@shopify/react-native-skia";
 import { useSharedValue } from "react-native-worklets-core";
@@ -48,6 +60,7 @@ export default function ScanScreen() {
     //const boxStyles = [styles.sideWhite, styles.sideOrange, styles.sideGreen, styles.sideRed, styles.sideBlue, styles.sideYellow];
 
     const frameDimensions = useSharedValue({ width: 0, height: 0 });
+    const viewDimensions = useSharedValue({ width: 0, height: 0 });
 
     const { detectedSides, validCube } = useCubeStore();
 
@@ -84,8 +97,12 @@ export default function ScanScreen() {
         runAtTargetFps(1, () => {
             "worklet";
 
-            const height = frame.height / 4;
-            const width = frame.width / 4;
+            const view = viewDimensions.value;
+            if (view.width === 0 || view.height === 0) return;
+
+            const downscale = 4;
+            const height = Math.floor(frame.height / downscale);
+            const width = Math.floor(frame.width / downscale);
 
             const resized = resize(frame, {
                 scale: { width, height },
@@ -93,10 +110,20 @@ export default function ScanScreen() {
                 dataType: "uint8",
             });
 
+            // The preview shows the frame rotated to the screen's orientation and scaled
+            // to cover the view, centered. Use that to map the on-screen guide box into
+            // frame pixels. The grid is square and centered, so the rotation doesn't
+            // change where the samples land.
+            const rotated = (frame.width > frame.height) !== (view.width > view.height);
+            const previewWidth  = rotated ? frame.height : frame.width;
+            const previewHeight = rotated ? frame.width  : frame.height;
+            const previewScale  = Math.max(view.width / previewWidth, view.height / previewHeight);
+
             const channels = 4;
-            const x = width / 2;
-            const y = height / 2;
-            const d = 20;
+            const x = Math.floor(width / 2);
+            const y = Math.floor(height / 2);
+            const d = Math.round(SCAN_BOX_SIZE / 3 / previewScale / downscale);
+            const sampleRadius = Math.max(1, Math.floor((d * SAMPLE_FRACTION) / 2));
 
             let colors: string[] = [];
 
@@ -104,24 +131,58 @@ export default function ScanScreen() {
                 for (let j = -1; j <= 1; j++) {
                     const newX = x + (j * d);
                     const newY = y + (i * d);
-                    const index = (newY * width + newX) * channels;
 
-                    const red   = resized[index];
-                    const green = resized[index + 1];
-                    const blue  = resized[index + 2];
+                    // Average a square patch around the sticker center to smooth out noise and glare
+                    let red   = 0;
+                    let green = 0;
+                    let blue  = 0;
+                    let count = 0;
 
-                    for (const range of Object.values(cubeRanges)) {
-                        const { min, max } = range;
-                        if (
-                            red   >= min.red   && red   <= max.red   &&
-                            green >= min.green && green <= max.green &&
-                            blue  >= min.blue  && blue  <= max.blue
-                        ) {
-                            colors.push(range.color);
+                    for (let dy = -sampleRadius; dy <= sampleRadius; dy++) {
+                        for (let dx = -sampleRadius; dx <= sampleRadius; dx++) {
+                            const index = ((newY + dy) * width + (newX + dx)) * channels;
+
+                            red   += resized[index];
+                            green += resized[index + 1];
+                            blue  += resized[index + 2];
+                            count++;
                         }
+                    }
+
+                    red   /= count;
+                    green /= count;
+                    blue  /= count;
+
+                    // Pick the reference color with the smallest euclidean distance
+                    let closest = "";
+                    let closestDistance = Infinity;
+
+                    for (const ref of Object.values(cubeColors)) {
+                        const dr = red   - ref.red;
+                        const dg = green - ref.green;
+                        const db = blue  - ref.blue;
+                        const distance = Math.sqrt(dr * dr + dg * dg + db * db);
+
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closest = ref.color;
+                        }
+                    }
+
+                    if (i == 0 && j == 0) {
+                        console.log(
+                            `Looking at: red: ${Math.round(red)}, green: ${Math.round(green)}, blue: ${Math.round(blue)}` +
+                            ` -> ${closest} (distance ${Math.round(closestDistance)})`
+                        );
+                    }
+
+                    if (closestDistance <= MAX_COLOR_DISTANCE) {
+                        colors.push(closest);
                     }
                 }
             }
+
+            console.log(`colors: ${colors.length}`)
 
             if (colors.length === 9 && detectedSides.value.length < 6) {
                 let valid = true;
@@ -168,7 +229,13 @@ export default function ScanScreen() {
     if (device == null) return <View />;
 
     return (
-        <View style={styles.container}>
+        <View
+            style={styles.container}
+            onLayout={(e: LayoutChangeEvent) => {
+                const { width, height } = e.nativeEvent.layout;
+                viewDimensions.value = { width, height };
+            }}
+        >
             <Camera
                 style={styles.camera}
                 device={device}
@@ -179,6 +246,22 @@ export default function ScanScreen() {
             />
 
             <View style={styles.box}>
+                {/* Where each sticker's center should sit, sized to the averaged patch */}
+                {Array.from({ length: 9 }).map((_, i) => (
+                    <View
+                        key={i}
+                        style={[
+                            styles.sampleMarker,
+                            {
+                                left: ((i % 3) + 0.5) * STICKER_SIZE - MARKER_SIZE / 2,
+                                top:  (Math.floor(i / 3) + 0.5) * STICKER_SIZE - MARKER_SIZE / 2,
+                            },
+                        ]}
+                    >
+                        <View style={styles.sampleDot} />
+                    </View>
+                ))}
+
                 <View style={[styles.corner, styles.cornerTL]} />
                 <View style={[styles.corner, styles.cornerTR]} />
                 <View style={[styles.corner, styles.cornerBL]} />
@@ -216,6 +299,8 @@ export default function ScanScreen() {
 
 const CORNER_SIZE  = 22;
 const CORNER_WIDTH = 3;
+const STICKER_SIZE = SCAN_BOX_SIZE / 3;
+const MARKER_SIZE  = STICKER_SIZE * SAMPLE_FRACTION;
 
 const styles = StyleSheet.create({
     container: {
@@ -226,13 +311,32 @@ const styles = StyleSheet.create({
         flex: 1,
     },
 
+    // Centered on the camera view so it lines up with the frame center the scanner samples around
     box: {
         position: "absolute",
-        top: "32.5%",
-        left: "15%",
-        width: 250,
-        aspectRatio: "1/1",
+        top: "50%",
+        left: "50%",
+        width: SCAN_BOX_SIZE,
+        height: SCAN_BOX_SIZE,
+        marginTop: -SCAN_BOX_SIZE / 2,
+        marginLeft: -SCAN_BOX_SIZE / 2,
         borderRadius: 12,
+    },
+    sampleMarker: {
+        position: "absolute",
+        width: MARKER_SIZE,
+        height: MARKER_SIZE,
+        borderWidth: 1.5,
+        borderColor: "rgba(255,255,255,0.85)",
+        borderRadius: 4,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    sampleDot: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: "rgba(255,255,255,0.85)",
     },
     corner: {
         position: "absolute",
