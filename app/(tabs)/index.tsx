@@ -34,9 +34,9 @@ import {
     validCubeColors,
 } from "@/scripts/organize-cube";
 
-const AMBER       = "#C49A00";
-const BG          = "#0D0D0D";
-const BORDER_MED  = "rgba(196,154,0,0.18)";
+const AMBER = "#C49A00";
+const BG = "#0D0D0D";
+const BORDER_MED = "rgba(196,154,0,0.18)";
 const WHITE_MUTED = "rgba(255,255,255,0.30)";
 
 const paint = Skia.Paint();
@@ -74,7 +74,7 @@ export default function ScanScreen() {
             if (current.length !== lastLength.current) {
                 lastLength.current = current.length;
 
-                setScannedSides([...current])
+                setScannedSides([...current]);
             }
         }, 500);
 
@@ -114,16 +114,23 @@ export default function ScanScreen() {
             // to cover the view, centered. Use that to map the on-screen guide box into
             // frame pixels. The grid is square and centered, so the rotation doesn't
             // change where the samples land.
-            const rotated = (frame.width > frame.height) !== (view.width > view.height);
-            const previewWidth  = rotated ? frame.height : frame.width;
-            const previewHeight = rotated ? frame.width  : frame.height;
-            const previewScale  = Math.max(view.width / previewWidth, view.height / previewHeight);
+            const rotated =
+                (frame.width > frame.height) !== (view.width > view.height);
+            const previewWidth = rotated ? frame.height : frame.width;
+            const previewHeight = rotated ? frame.width : frame.height;
+            const previewScale = Math.max(
+                view.width / previewWidth,
+                view.height / previewHeight,
+            );
 
             const channels = 4;
             const x = Math.floor(width / 2);
             const y = Math.floor(height / 2);
             const d = Math.round(SCAN_BOX_SIZE / 3 / previewScale / downscale);
-            const sampleRadius = Math.max(1, Math.floor((d * SAMPLE_FRACTION) / 2));
+            const sampleRadius = Math.max(
+                1,
+                Math.floor((d * SAMPLE_FRACTION) / 2),
+            );
 
             let colors: string[] = [];
 
@@ -133,34 +140,35 @@ export default function ScanScreen() {
                     const newY = y + (i * d);
 
                     // Average a square patch around the sticker center to smooth out noise and glare
-                    let red   = 0;
+                    let red = 0;
                     let green = 0;
-                    let blue  = 0;
+                    let blue = 0;
                     let count = 0;
 
                     for (let dy = -sampleRadius; dy <= sampleRadius; dy++) {
                         for (let dx = -sampleRadius; dx <= sampleRadius; dx++) {
-                            const index = ((newY + dy) * width + (newX + dx)) * channels;
+                            const index = ((newY + dy) * width + (newX + dx)) *
+                                channels;
 
-                            red   += resized[index];
+                            red += resized[index];
                             green += resized[index + 1];
-                            blue  += resized[index + 2];
+                            blue += resized[index + 2];
                             count++;
                         }
                     }
 
-                    red   /= count;
+                    red /= count;
                     green /= count;
-                    blue  /= count;
+                    blue /= count;
 
                     // Pick the reference color with the smallest euclidean distance
                     let closest = "";
                     let closestDistance = Infinity;
 
                     for (const ref of Object.values(cubeColors)) {
-                        const dr = red   - ref.red;
+                        const dr = red - ref.red;
                         const dg = green - ref.green;
-                        const db = blue  - ref.blue;
+                        const db = blue - ref.blue;
                         const distance = Math.sqrt(dr * dr + dg * dg + db * db);
 
                         if (distance < closestDistance) {
@@ -169,20 +177,18 @@ export default function ScanScreen() {
                         }
                     }
 
-                    if (i == 0 && j == 0) {
-                        console.log(
-                            `Looking at: red: ${Math.round(red)}, green: ${Math.round(green)}, blue: ${Math.round(blue)}` +
-                            ` -> ${closest} (distance ${Math.round(closestDistance)})`
-                        );
-                    }
+                    // if (i == 0 && j == 0) {
+                    //     console.log(
+                    //         `Looking at: red: ${Math.round(red)}, green: ${Math.round(green)}, blue: ${Math.round(blue)}` +
+                    //         ` -> ${closest} (distance ${Math.round(closestDistance)})`
+                    //     );
+                    // }
 
                     if (closestDistance <= MAX_COLOR_DISTANCE) {
                         colors.push(closest);
                     }
                 }
             }
-
-            console.log(`colors: ${colors.length}`)
 
             if (colors.length === 9 && detectedSides.value.length < 6) {
                 let valid = true;
@@ -191,7 +197,7 @@ export default function ScanScreen() {
                 }
                 if (valid) {
                     detectedSides.value = [...detectedSides.value, colors];
-                    console.log(`Found Valid!: ${detectedSides.value.length}`);
+                    // console.log(`Found Valid!: ${detectedSides.value.length}`);
                 }
             }
 
@@ -203,7 +209,7 @@ export default function ScanScreen() {
                     detectedSides.value = organizeCube(detectedSides.value);
                     validCube.value = true;
                 }
-                console.log("------FINISH CHECK------");
+                // console.log("------FINISH CHECK------");
             }
         });
     }, [resize]);
@@ -253,19 +259,16 @@ export default function ScanScreen() {
                         style={[
                             styles.sampleMarker,
                             {
-                                left: ((i % 3) + 0.5) * STICKER_SIZE - MARKER_SIZE / 2,
-                                top:  (Math.floor(i / 3) + 0.5) * STICKER_SIZE - MARKER_SIZE / 2,
+                                left: ((i % 3) + 0.5) * STICKER_SIZE -
+                                    MARKER_SIZE / 2,
+                                top: (Math.floor(i / 3) + 0.5) * STICKER_SIZE -
+                                    MARKER_SIZE / 2,
                             },
                         ]}
                     >
                         <View style={styles.sampleDot} />
                     </View>
                 ))}
-
-                <View style={[styles.corner, styles.cornerTL]} />
-                <View style={[styles.corner, styles.cornerTR]} />
-                <View style={[styles.corner, styles.cornerBL]} />
-                <View style={[styles.corner, styles.cornerBR]} />
             </View>
 
             <View style={styles.hudTop}>
@@ -289,7 +292,10 @@ export default function ScanScreen() {
             </View>
 
             <View style={styles.bottomBar}>
-                <TouchableOpacity style={styles.resetButton} onPress={resetSides}>
+                <TouchableOpacity
+                    style={styles.resetButton}
+                    onPress={resetSides}
+                >
                     <Text style={styles.resetButtonText}>Reset Scan</Text>
                 </TouchableOpacity>
             </View>
@@ -297,10 +303,10 @@ export default function ScanScreen() {
     );
 }
 
-const CORNER_SIZE  = 22;
+const CORNER_SIZE = 22;
 const CORNER_WIDTH = 3;
 const STICKER_SIZE = SCAN_BOX_SIZE / 3;
-const MARKER_SIZE  = STICKER_SIZE * SAMPLE_FRACTION;
+const MARKER_SIZE = STICKER_SIZE * SAMPLE_FRACTION;
 
 const styles = StyleSheet.create({
     container: {
@@ -327,7 +333,7 @@ const styles = StyleSheet.create({
         width: MARKER_SIZE,
         height: MARKER_SIZE,
         borderWidth: 1.5,
-        borderColor: "rgba(255,255,255,0.85)",
+        borderColor: AMBER,
         borderRadius: 4,
         alignItems: "center",
         justifyContent: "center",
@@ -336,40 +342,8 @@ const styles = StyleSheet.create({
         width: 4,
         height: 4,
         borderRadius: 2,
-        backgroundColor: "rgba(255,255,255,0.85)",
+        backgroundColor: AMBER,
     },
-    corner: {
-        position: "absolute",
-        width: CORNER_SIZE,
-        height: CORNER_SIZE,
-        borderColor: AMBER,
-        borderRadius: 3,
-    },
-    cornerTL: {
-        top: 0,
-        left: 0,
-        borderTopWidth: CORNER_WIDTH,
-        borderLeftWidth: CORNER_WIDTH,
-    },
-    cornerTR: {
-        top: 0,
-        right: 0,
-        borderTopWidth: CORNER_WIDTH,
-        borderRightWidth: CORNER_WIDTH,
-    },
-    cornerBL: {
-        bottom: 0,
-        left: 0,
-        borderBottomWidth: CORNER_WIDTH,
-        borderLeftWidth: CORNER_WIDTH,
-    },
-    cornerBR: {
-        bottom: 0,
-        right: 0,
-        borderBottomWidth: CORNER_WIDTH,
-        borderRightWidth: CORNER_WIDTH,
-    },
-
     hudTop: {
         position: "absolute",
         top: 0,
@@ -419,12 +393,12 @@ const styles = StyleSheet.create({
         height: 50,
         alignItems: "center",
     },
-    sideGreen:  { position: "absolute", top: 90,  right: 30  },
-    sideBlue:   { position: "absolute", top: 90,  right: -60 },
-    sideRed:    { position: "absolute", top: 90,  right: -15 },
-    sideOrange: { position: "absolute", top: 90,  right: 75  },
-    sideYellow: { position: "absolute", top: 135, right: 30  },
-    sideWhite:  { position: "absolute", top: 45,  right: 30  },
+    sideGreen: { position: "absolute", top: 90, right: 30 },
+    sideBlue: { position: "absolute", top: 90, right: -60 },
+    sideRed: { position: "absolute", top: 90, right: -15 },
+    sideOrange: { position: "absolute", top: 90, right: 75 },
+    sideYellow: { position: "absolute", top: 135, right: 30 },
+    sideWhite: { position: "absolute", top: 45, right: 30 },
     sideIndicator: {
         width: 40,
         height: 40,

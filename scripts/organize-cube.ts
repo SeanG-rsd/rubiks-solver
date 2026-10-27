@@ -285,7 +285,7 @@ const isValidOrientation = (cube: string[][]): boolean => {
         countColors[COLOR_TABLE[color3 as keyof typeof COLOR_TABLE]]++;
     }
 
-    console.log(countColors);
+    // console.log(countColors);
 
     return true;
 };
@@ -296,7 +296,7 @@ const findBestOrientation = (cube: string[][]): string[][] => {
 
     let best: string[][] = [];
 
-    console.log("--- Begin Test ---");
+    // console.log("--- Begin Test ---");
 
     // Try all 4 rotations of the white (top) face
     for (let whiteRot = 0; whiteRot < 4; whiteRot++) {
@@ -354,11 +354,11 @@ const findBestOrientation = (cube: string[][]): string[][] => {
 
                             // Check if this orientation is valid
                             if (isValidOrientation(fullTest)) {
-                                console.log("Found valid orientation!");
-                                printCube(fullTest);
-                                console.log(
-                                    `Rotations - W:${whiteRot} O:${orangeRot} G:${greenRot} R:${redRot} B:${blueRot} Y:${yellowRot}`,
-                                );
+                                // console.log("Found valid orientation!");
+                                // printCube(fullTest);
+                                // console.log(
+                                //     `Rotations - W:${whiteRot} O:${orangeRot} G:${greenRot} R:${redRot} B:${blueRot} Y:${yellowRot}`,
+                                // );
                                 return fullTest;
                             }
                         }
@@ -368,10 +368,10 @@ const findBestOrientation = (cube: string[][]): string[][] => {
         }
     }
 
-    console.log("----------------");
+    // console.log("----------------");
 
     // If no valid orientation found, return original
-    console.log("WARNING: Could not find valid cube orientation!");
+    // console.log("WARNING: Could not find valid cube orientation!");
     return cube;
 };
 
@@ -413,11 +413,11 @@ export const validCubeColors = (s: any) => {
     "worklet";
 
     let vals = [0, 0, 0, 0, 0, 0];
-    console.log("------CHECKING------");
+    // console.log("------CHECKING------");
 
     for (let i = 0; i < 6; i++) {
         const side = s[i];
-        console.log(side);
+        // console.log(side);
 
         for (let j = 0; j < 9; j++) {
             const color = side[j];
@@ -432,8 +432,8 @@ export const validCubeColors = (s: any) => {
 
     for (let i = 0; i < vals.length; i++) {
         if (vals[i] !== 9) {
-            console.log("INVALID CUBE: Resetting");
-            console.log(vals);
+            // console.log("INVALID CUBE: Resetting");
+            // console.log(vals);
             return false;
         }
     }

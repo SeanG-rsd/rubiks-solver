@@ -54,7 +54,7 @@ const reorder = [0, 3, 2, 5, 1, 4];
 // resolves with the moves separated by spaces, or "" if the cube is already solved.
 // rejects with the reason if the scanned colors aren't a solvable cube
 export const solveCube = (cube: string) : Promise<string> => {
-    console.log(cube)
+    // console.log(cube)
     return NativeCubeSolver.solve(cube);
 };
 

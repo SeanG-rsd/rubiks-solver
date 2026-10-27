@@ -9,6 +9,13 @@ import { Suspense, useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import RubiksCube from "../../components/rubiks-cube";
 
+// R -> R', R' -> R, R2 -> R2
+const invertMove = (move) => {
+  if (move.endsWith("'")) return move.slice(0, -1);
+  if (move.endsWith("2")) return move;
+  return `${move}'`;
+};
+
 export default function Solve() {
   const modelRef = useRef();
   const cameraRef = useRef();
@@ -27,27 +34,66 @@ export default function Solve() {
 
   const [currentMove, setCurrentMove] = useState("");
 
+  // Why the solver rejected the scanned cube, e.g. "an edge is flipped"
+  const [solveError, setSolveError] = useState(null);
+
+  // Bumped on every animated move so the cube replays even if the move string is unchanged (e.g. undoing R2)
+  const [moveId, setMoveId] = useState(0);
+
+  // Moves already played, most recent last, so they can be undone
+  const [history, setHistory] = useState([]);
+
+  // Ignore taps while a turn is animating, otherwise the move list and the cube drift apart
+  const isAnimating = useRef(false);
+
+  const playMove = (move) => {
+    isAnimating.current = true;
+    setCurrentMove(move);
+    setMoveId((id) => id + 1);
+  };
+
   const startNextMove = () => {
-    if (nextMove !== "") {
-      console.log(`Animating Move: ${nextMove}`);
+    if (isAnimating.current || nextMove === "" || nextMove === "Solved") return;
 
-      setCurrentMove(nextMove);
+    // console.log(`Animating Move: ${nextMove}`);
 
-      if (moves.length > 0) {
-        setNextMove(moves[0]);
-        setMoves(moves.splice(1));
-      } else {
-        setNextMove("Solved");
-      }
+    playMove(nextMove);
+    setHistory([...history, nextMove]);
+
+    if (moves.length > 0) {
+      setNextMove(moves[0]);
+      setMoves(moves.slice(1));
+    } else {
+      setNextMove("Solved");
     }
+  };
+
+  const startPrevMove = () => {
+    if (isAnimating.current || history.length === 0) return;
+
+    const lastMove = history[history.length - 1];
+    // console.log(`Undoing Move: ${lastMove}`);
+
+    playMove(invertMove(lastMove));
+    setHistory(history.slice(0, -1));
+
+    if (nextMove !== "Solved") {
+      setMoves([nextMove, ...moves]);
+    }
+    setNextMove(lastMove);
   };
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
 
+      // The cube is repainted from the scanned state when the screen remounts, so start over
+      isAnimating.current = false;
+      setHistory([]);
+      setSolveError(null);
+
       const solve = async () => {
-        printCube(detectedSides.value);
+        // printCube(detectedSides.value);
         const cube = cubeToString(detectedSides.value);
 
         try {
@@ -62,11 +108,16 @@ export default function Solve() {
 
             const moves = algorithm.split(" ");
             setNextMove(moves[0]);
-            console.log(moves);
+            // console.log(moves);
             setMoves(moves.splice(1));
           }
         } catch (e) {
-          console.log("Could not solve:", e.message);
+          // console.log("Could not solve:", e.message);
+          if (isActive) {
+            setSolveError(e?.message || "the scanned colors don't make a real cube");
+            setNextMove("");
+            setMoves([]);
+          }
         }
       };
 
@@ -85,8 +136,22 @@ export default function Solve() {
   return (
     <View style={styles.container} key={isFocused}>
       <View style={styles.moveContainer}>
-        <Text style={styles.moveLabel}>NEXT MOVE</Text>
-        <Text style={styles.moveText}>{nextMove || "—"}</Text>
+        {solveError ? (
+          <>
+            <Text style={[styles.moveLabel, styles.errorLabel]}>NO SOLUTION</Text>
+            <Text style={styles.errorTitle}>
+              {solveError.charAt(0).toUpperCase() + solveError.slice(1)}
+            </Text>
+            <Text style={styles.errorHint}>
+              A sticker was probably misread. Reset the scan and try again.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.moveLabel}>NEXT MOVE</Text>
+            <Text style={styles.moveText}>{nextMove || "—"}</Text>
+          </>
+        )}
         <View style={styles.moveDivider} />
       </View>
 
@@ -102,7 +167,10 @@ export default function Solve() {
             modelRef={modelRef}
             sides={currentSides}
             currentMove={currentMove}
-            onMoveComplete={() => {}}
+            moveId={moveId}
+            onMoveComplete={() => {
+              isAnimating.current = false;
+            }}
           ></RubiksCube>
           <OrbitControls
             enableRotate={true}
@@ -124,7 +192,7 @@ export default function Solve() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.button, styles.buttonSecondary]}
-            onPress={() => goBack()}
+            onPress={() => startPrevMove()}
           >
             <Text style={styles.buttonTextSecondary}>{"← Prev"}</Text>
           </TouchableOpacity>
@@ -174,6 +242,23 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -1,
     lineHeight: 58,
+  },
+  errorLabel: {
+    color: "#E5484D",
+  },
+  errorTitle: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "800",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  errorHint: {
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    lineHeight: 20,
   },
   moveDivider: {
     marginTop: 14,

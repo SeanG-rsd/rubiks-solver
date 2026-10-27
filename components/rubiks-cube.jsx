@@ -23,7 +23,7 @@ function applySideColors(sortedMeshes, sideColors) {
     });
 }
 
-export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplete }) {
+export default function RubiksCube({ modelRef, sides, currentMove, moveId, onMoveComplete }) {
     if (sides.length !== 6) {
         return (
             <mesh>...</mesh>
@@ -32,6 +32,8 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
 
     const isColorsApplied = useRef(false);
     const isAnimating = useRef(false);
+    // The move that was current at mount counts as already played, so a remount doesn't replay it
+    const lastMoveId = useRef(moveId);
     const { scene } = useGLTF(require("../assets/models/rubiks.glb"));
 
     const sideMeshes = useRef({
@@ -135,19 +137,20 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
     }, [scene, sides]);
 
     useEffect(() => {
-        if (currentMove !== "" && !isAnimating.current && isColorsApplied.current) {
-            console.log(`handle move: ${currentMove}`);
+        if (moveId !== lastMoveId.current && !isAnimating.current && isColorsApplied.current) {
+            // console.log(`handle move: ${currentMove}`);
+            lastMoveId.current = moveId;
             isAnimating.current = true;
 
             handleMove(currentMove)
         }
-    }, [currentMove, isColorsApplied.current]);
+    }, [currentMove, moveId, isColorsApplied.current]);
 
     const handleMove = (move) => {
-        console.log("handle move starting");
+        // console.log("handle move starting");
         
         if (!scene) {
-            console.log("Scene not loaded yet");
+            // console.log("Scene not loaded yet");
             isAnimating.current = false;
             return;
         }
@@ -225,7 +228,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
             });
         }
 
-        console.log("Pieces to rotate:", pieces.length);
+        // console.log("Pieces to rotate:", pieces.length);
 
         pieces.forEach((piece) => {
             pivot.attach(piece);
@@ -266,7 +269,7 @@ export default function RubiksCube({ modelRef, sides, currentMove, onMoveComplet
                 scene.remove(pivot);
                 isAnimating.current = false;
                 onMoveComplete();
-                console.log("Animation complete");
+                // console.log("Animation complete");
             }
         };
 
