@@ -22,8 +22,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ],
       "package": "com.nutronlabs.rubikssolver"
     },
@@ -39,9 +38,9 @@
           "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#10100F",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#10100F"
           }
         }
       ],
@@ -49,7 +48,8 @@
         "expo-camera",
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
-          "recordAudioAndroid": true
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
