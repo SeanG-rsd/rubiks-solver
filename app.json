@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "rubiks-solver",
+    "name": "Rubiks Solver",
     "slug": "rubiks-solver",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,11 +8,10 @@
     "scheme": "rubikssolver",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.nutronlabs.rubikssolver",
       "infoPlist": {
         "NSCameraUsageDescription": "$(PRODUCT_NAME) needs access to your Camera.",
-        "NSMicrophoneUsageDescription": "$(PRODUCT_NAME) needs access to your Microphone.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -30,7 +29,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       "expo-router",
@@ -50,16 +49,13 @@
         "expo-camera",
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
           "recordAudioAndroid": true
         }
       ],
       [
         "react-native-vision-camera",
         {
-          "cameraPermissionText": "$(PRODUCT_NAME) needs access to your Camera.",
-          "enableMicrophonePermission": true,
-          "microphonePermissionText": "$(PRODUCT_NAME) needs access to your Microphone."
+          "cameraPermissionText": "$(PRODUCT_NAME) needs access to your Camera."
         }
       ],
       "expo-font",
