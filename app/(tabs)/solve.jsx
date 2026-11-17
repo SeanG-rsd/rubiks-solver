@@ -91,6 +91,8 @@ export default function Solve() {
       isAnimating.current = false;
       setHistory([]);
       setSolveError(null);
+      setNextMove("");
+      setMoves([]);
 
       const solve = async () => {
         // printCube(detectedSides.value);
@@ -114,7 +116,9 @@ export default function Solve() {
         } catch (e) {
           // console.log("Could not solve:", e.message);
           if (isActive) {
-            setSolveError(e?.message || "the scanned colors don't make a real cube");
+            setSolveError(
+              e?.message || "the scanned colors don't make a real cube",
+            );
             setNextMove("");
             setMoves([]);
           }
@@ -136,22 +140,26 @@ export default function Solve() {
   return (
     <View style={styles.container} key={isFocused}>
       <View style={styles.moveContainer}>
-        {solveError ? (
-          <>
-            <Text style={[styles.moveLabel, styles.errorLabel]}>NO SOLUTION</Text>
-            <Text style={styles.errorTitle}>
-              {solveError.charAt(0).toUpperCase() + solveError.slice(1)}
-            </Text>
-            <Text style={styles.errorHint}>
-              A sticker was probably misread. Reset the scan and try again.
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.moveLabel}>NEXT MOVE</Text>
-            <Text style={styles.moveText}>{nextMove || "—"}</Text>
-          </>
-        )}
+        {solveError
+          ? (
+            <>
+              <Text style={[styles.moveLabel, styles.errorLabel]}>
+                NO SOLUTION
+              </Text>
+              <Text style={styles.errorTitle}>
+                {solveError.charAt(0).toUpperCase() + solveError.slice(1)}
+              </Text>
+              <Text style={styles.errorHint}>
+                A sticker was probably misread. Reset the scan and try again.
+              </Text>
+            </>
+          )
+          : (
+            <>
+              <Text style={styles.moveLabel}>NEXT MOVE</Text>
+              <Text style={styles.moveText}>{nextMove || "—"}</Text>
+            </>
+          )}
         <View style={styles.moveDivider} />
       </View>
 
@@ -171,7 +179,8 @@ export default function Solve() {
             onMoveComplete={() => {
               isAnimating.current = false;
             }}
-          ></RubiksCube>
+          >
+          </RubiksCube>
           <OrbitControls
             enableRotate={true}
             rotateSpeed={2.5}
@@ -203,7 +212,9 @@ export default function Solve() {
               startNextMove();
             }}
           >
-            <Text style={styles.buttonTextPrimary}>{"Next →"}</Text>
+            <Text style={styles.buttonTextPrimary}>
+              {"Next →"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

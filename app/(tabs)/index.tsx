@@ -29,6 +29,7 @@ import { PaintStyle, Skia } from "@shopify/react-native-skia";
 import { useSharedValue } from "react-native-worklets-core";
 import { useResizePlugin } from "vision-camera-resize-plugin";
 import {
+    classifyStickers,
     COLOR_TABLE,
     organizeCube,
     validCubeColors,
@@ -56,13 +57,13 @@ export default function ScanScreen() {
     const isActive = isFocused && appState === "active";
 
     const [scannedSides, setScannedSides] = useState<string[][]>([]);
-
-    //const boxStyles = [styles.sideWhite, styles.sideOrange, styles.sideGreen, styles.sideRed, styles.sideBlue, styles.sideYellow];
+    const [showResult, setShowResult] = useState(false);
 
     const frameDimensions = useSharedValue({ width: 0, height: 0 });
     const viewDimensions = useSharedValue({ width: 0, height: 0 });
 
-    const { detectedSides, validCube } = useCubeStore();
+    const { detectedSides, rawValues, validCube, showScanResult } =
+        useCubeStore();
 
     const lastLength = useRef(0);
 
@@ -76,6 +77,7 @@ export default function ScanScreen() {
 
                 setScannedSides([...current]);
             }
+            setShowResult(showScanResult.value);
         }, 500);
 
         return () => clearInterval(interval);
@@ -99,6 +101,7 @@ export default function ScanScreen() {
 
             const view = viewDimensions.value;
             if (view.width === 0 || view.height === 0) return;
+            if (showScanResult.value) return;
 
             const downscale = 4;
             const height = Math.floor(frame.height / downscale);
@@ -133,6 +136,7 @@ export default function ScanScreen() {
             );
 
             let colors: string[] = [];
+            let rawFace: number[][] = [];
 
             for (let i = -1; i <= 1; i++) {
                 for (let j = -1; j <= 1; j++) {
@@ -186,6 +190,7 @@ export default function ScanScreen() {
 
                     if (closestDistance <= MAX_COLOR_DISTANCE) {
                         colors.push(closest);
+                        rawFace.push([red, green, blue]);
                     }
                 }
             }
@@ -197,18 +202,45 @@ export default function ScanScreen() {
                 }
                 if (valid) {
                     detectedSides.value = [...detectedSides.value, colors];
+                    rawValues.value = [...rawValues.value, rawFace];
                     // console.log(`Found Valid!: ${detectedSides.value.length}`);
                 }
             }
 
             if (detectedSides.value.length === 6 && !validCube.value) {
+                let check = detectedSides.value;
                 let valid = validCubeColors(detectedSides.value);
                 if (!valid) {
-                    detectedSides.value = [];
-                } else {
-                    detectedSides.value = organizeCube(detectedSides.value);
-                    validCube.value = true;
+                    // do a recheck with the raw values
+                    const faceColors = detectedSides.value.map((side) =>
+                        side[4]
+                    );
+                    check = classifyStickers(
+                        rawValues.value,
+                        faceColors,
+                    );
+
+                    valid = true
+                } 
+
+                if (valid) {
+                    const res = organizeCube(check);
+                    if (res != null) {
+                        check = res; 
+                    } else {
+                        valid = false;
+                    }
                 }
+
+                if (!valid) {
+                    detectedSides.value = [];
+                    rawValues.value = [];
+                } else {
+                    validCube.value = true;
+                    rawValues.value = [];
+                    detectedSides.value = check
+                }
+                showScanResult.value = true;
                 // console.log("------FINISH CHECK------");
             }
         });
@@ -216,18 +248,25 @@ export default function ScanScreen() {
 
     const resetSides = () => {
         detectedSides.value = [];
+        rawValues.value = [];
         validCube.value = false;
+        showScanResult.value = false;
     };
 
     if (!permission) return <View />;
 
     if (!permission.granted) {
         return (
-            <View style={styles.container}>
+            <View style={styles.permission}>
                 <Text style={styles.message}>
                     We need your permission to show the camera
                 </Text>
-                <Button onPress={requestPermission} title="grant permission" />
+                <TouchableOpacity
+                    style={styles.grantPermissionButton}
+                    onPress={requestPermission}
+                >
+                    <Text style={styles.resetButtonText}>Grant Permission</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -272,23 +311,40 @@ export default function ScanScreen() {
             </View>
 
             <View style={styles.hudTop}>
-                <Text style={styles.hudLabel}>SCANNING</Text>
-                <View style={styles.progressRow}>
-                    {Array.from({ length: 6 }).map((_, i) => (
-                        <View
-                            key={i}
-                            style={[
-                                styles.progressDot,
-                                {
-                                    backgroundColor: i < scannedCount
-                                        ? scannedSides[i][4]
-                                        : "rgba(196,154,0,0.20)",
-                                },
-                            ]}
-                        />
-                    ))}
-                </View>
-                <Text style={styles.hudSub}>{scannedCount} / 6 sides</Text>
+                <Text style={styles.hudLabel}>
+                    {showResult ? "SCANNED" : "SCANNING"}
+                </Text>
+                {!showResult
+                    ? (
+                        <>
+                            <View style={styles.progressRow}>
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                    <View
+                                        key={i}
+                                        style={[
+                                            styles.progressDot,
+                                            {
+                                                backgroundColor:
+                                                    i < scannedCount
+                                                        ? scannedSides[i][4]
+                                                        : "rgba(196,154,0,0.20)",
+                                            },
+                                        ]}
+                                    />
+                                ))}
+                            </View>
+                            <Text style={styles.hudSub}>
+                                {scannedCount} / 6 sides
+                            </Text>
+                        </>
+                    )
+                    : (
+                        <Text style={styles.hudSub}>
+                            {scannedCount === 6
+                                ? "Success! Go to the solve tab and solve it!"
+                                : "Failed to scan cube. Reset the scan."}
+                        </Text>
+                    )}
             </View>
 
             <View style={styles.bottomBar}>
@@ -303,8 +359,6 @@ export default function ScanScreen() {
     );
 }
 
-const CORNER_SIZE = 22;
-const CORNER_WIDTH = 3;
 const STICKER_SIZE = SCAN_BOX_SIZE / 3;
 const MARKER_SIZE = STICKER_SIZE * SAMPLE_FRACTION;
 
@@ -375,42 +429,11 @@ const styles = StyleSheet.create({
         borderRadius: 2,
         backgroundColor: "rgba(196,154,0,0.20)",
     },
-    progressDotFilled: {
-        backgroundColor: AMBER,
-    },
     hudSub: {
         color: WHITE_MUTED,
         fontSize: 12,
         fontWeight: "600",
         letterSpacing: 1,
-    },
-
-    sidesContainer: {
-        position: "absolute",
-        top: 0,
-        right: "40%",
-        width: 100,
-        height: 50,
-        alignItems: "center",
-    },
-    sideGreen: { position: "absolute", top: 90, right: 30 },
-    sideBlue: { position: "absolute", top: 90, right: -60 },
-    sideRed: { position: "absolute", top: 90, right: -15 },
-    sideOrange: { position: "absolute", top: 90, right: 75 },
-    sideYellow: { position: "absolute", top: 135, right: 30 },
-    sideWhite: { position: "absolute", top: 45, right: 30 },
-    sideIndicator: {
-        width: 40,
-        height: 40,
-        borderRadius: 7,
-        borderWidth: 1.5,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    sideText: {
-        color: AMBER,
-        fontWeight: "700",
-        fontSize: 13,
     },
 
     bottomBar: {
@@ -443,9 +466,28 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
 
+    permission: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: BG,
+    },
     message: {
         textAlign: "center",
         paddingBottom: 10,
-        color: "white",
+        fontSize: 12,
+        fontWeight: "700",
+        letterSpacing: 1,
+        color: AMBER,
+    },
+    grantPermissionButton: {
+        width: "80%",
+        height: 52,
+        borderRadius: 14,
+        backgroundColor: "rgba(255,255,255,0.06)",
+        borderWidth: 1,
+        borderColor: AMBER,
+        alignItems: "center",
+        justifyContent: "center",
     },
 });

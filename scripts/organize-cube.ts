@@ -291,7 +291,7 @@ const isValidOrientation = (cube: string[][]): boolean => {
 };
 
 // Find correct orientation by trying all rotations and checking corners
-const findBestOrientation = (cube: string[][]): string[][] => {
+const findBestOrientation = (cube: string[][]): string[][] | null => {
     "worklet";
 
     let best: string[][] = [];
@@ -372,7 +372,7 @@ const findBestOrientation = (cube: string[][]): string[][] => {
 
     // If no valid orientation found, return original
     // console.log("WARNING: Could not find valid cube orientation!");
-    return cube;
+    return null;
 };
 
 export const organizeCube = (scannedSides: any) => {
@@ -432,10 +432,49 @@ export const validCubeColors = (s: any) => {
 
     for (let i = 0; i < vals.length; i++) {
         if (vals[i] !== 9) {
-            // console.log("INVALID CUBE: Resetting");
-            // console.log(vals);
             return false;
         }
     }
     return true;
 };
+
+// euclidian distance between colors
+export const distance = (p: number[], q: number[]) => {
+    "worklet";
+    const dr = p[0] - q[0];
+    const dg = p[1] - q[1];
+    const db = p[2] - q[2];
+    return Math.sqrt(dr * dr + dg * dg + db * db);
+};
+
+
+// raw[face][sticker] = [r, g, b]; centers[face] = the color name of that face's center
+export const classifyStickers = (raw: number[][][], centers: string[]): string[][] => {
+    "worklet";
+    const refs = raw.map((face) => face[4]);
+
+    const items: { face: number; idx: number; costs: number[]; margin: number }[] = [];
+    for (let f = 0; f < 6; f++) {
+        for (let i = 0; i < 9; i++) {
+            if (i === 4) continue;
+            const costs = refs.map((ref) => distance(raw[f][i], ref));
+            const sorted = [...costs].sort((a, b) => a - b);
+            items.push({ face: f, idx: i, costs, margin: sorted[1] - sorted[0] });
+        }
+    }
+
+    // Most certain stickers choose first; borderline ones get whichever color still has room
+    items.sort((a, b) => b.margin - a.margin);
+    const room = [8, 8, 8, 8, 8, 8];
+    const result = centers.map((c) => ["", "", "", "", c, "", "", "", ""]);
+    for (const item of items) {
+        let best = -1;
+        for (let c = 0; c < 6; c++) {
+            if (room[c] > 0 && (best === -1 || item.costs[c] < item.costs[best])) best = c;
+        }
+        room[best]--;
+        result[item.face][item.idx] = centers[best];
+    }
+    return result;
+};
+
